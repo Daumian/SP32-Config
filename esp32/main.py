@@ -6,7 +6,9 @@
 #   pausa corta = cierra la letra, pausa larga = cierra la palabra
 #   mantener apretado 2 s = dormir
 # Una palabra de UNA sola letra que este en COMANDOS ejecuta ese comando
-# (B = Bluetooth, W = WiFi, X = imagen). Cualquier otra cosa queda como texto.
+# (B = Bluetooth, W = WiFi, X = imagen, E = escritura libre). Cualquier otra
+# cosa queda como texto. En escritura libre no hay comandos; 8 puntos sale.
+# 3 min sin uso apaga la pantalla (el WiFi sigue); 10 min duerme del todo.
 #
 # Con el WiFi prendido escucha frames de la PC por TCP (cfg.ESP_FRAME_PORT):
 #   "clave:FRAME\n" + 512 bytes  -> dibuja el frame (MONO_VLSB)
@@ -16,6 +18,7 @@
 #
 # Y tambien un mini servidor HTTP (cfg.HTTP_PORT, 80 por defecto) para
 # pc/index.html. Todas las rutas menos /estado piden ?clave=SHARED_SECRET:
+#   GET  /                       -> sirve index.html (si lo subimos a la placa)
 #   GET  /estado                 -> JSON con wifi, bluetooth y texto
 #   POST /frame?clave=...        -> cuerpo de 512 bytes, se dibuja
 #   POST /comando?clave=...&letra=B  -> ejecuta un comando de COMANDOS
@@ -37,6 +40,8 @@ WIDTH = 128
 HEIGHT = 32
 FRAME_BYTES = WIDTH * HEIGHT // 8  # 512
 HTTP_PORT = getattr(cfg, "HTTP_PORT", 80)
+SCREEN_TIMEOUT_MS = getattr(cfg, "SCREEN_TIMEOUT_MS", 3 * 60 * 1000)
+SALIR_ESCRITURA = "........"  # 8 puntos: la senal de error en morse
 
 i2c = I2C(0, scl=Pin(22), sda=Pin(21), freq=400000)
 oled = ssd1306.SSD1306_I2C(WIDTH, HEIGHT, i2c)
@@ -77,6 +82,9 @@ palabra = ""
 morse_actual = ""
 presionado_desde = None
 soltado_en = time.ticks_ms()
+escritura_libre = False
+pantalla_on = False
+ignorar_toque = False  # el toque que prende la pantalla no cuenta como morse
 
 
 # ---------------------------------------------------------------- pantalla
@@ -113,7 +121,33 @@ def dibujar():
         oled.text("W", 104, 22)
     if ble.active():
         oled.text("B", 120, 22)
+    if escritura_libre:
+        oled.text("E", 88, 22)
     oled.show()
+
+
+def prender_pantalla():
+    global pantalla_on
+    if not pantalla_on:
+        oled.poweron()
+        pantalla_on = True
+
+
+def apagar_pantalla():
+    global pantalla_on
+    oled.fill(0)
+    oled.show()
+    oled.poweroff()
+    pantalla_on = False
+    print("Pantalla apagada (sin uso)")
+
+
+def mostrar_frame(data):
+    global last_activity
+    prender_pantalla()
+    oled.buffer[:] = data
+    oled.show()
+    last_activity = time.ticks_ms()
 
 
 def mensaje(*lines, ms=T_MENSAJE):
@@ -194,17 +228,34 @@ def cmd_imagen():
     time.sleep_ms(3000)
 
 
+def cmd_escritura():
+    global escritura_libre, texto
+    escritura_libre = True
+    texto = ""
+    mensaje("Escritura libre", "8 puntos = salir", ms=2000)
+
+
 COMANDOS = {
     'B': cmd_bluetooth,
     'W': cmd_wifi,
     'X': cmd_imagen,
+    'E': cmd_escritura,
 }
 
 
 # ---------------------------------------------------------------- morse
 
 def cerrar_letra():
-    global morse_actual, texto, palabra
+    global morse_actual, texto, palabra, escritura_libre
+    if escritura_libre and morse_actual == SALIR_ESCRITURA:
+        morse_actual = ""
+        escritura_libre = False
+        palabra = ""
+        texto = ""
+        print("Fin de escritura libre")
+        mensaje("Fin escritura", "Que necesita?")
+        dibujar()
+        return
     letra = MORSE.get(morse_actual, "?")
     morse_actual = ""
     texto = (texto + letra)[-40:]
@@ -215,6 +266,7 @@ def cerrar_letra():
 def ejecutar_comando(letra):
     global soltado_en, last_activity
     print("Comando:", letra)
+    prender_pantalla()
     COMANDOS[letra]()
     soltado_en = time.ticks_ms()
     last_activity = soltado_en
@@ -224,7 +276,7 @@ def cerrar_palabra():
     global texto, palabra
     p = palabra
     palabra = ""
-    if len(p) == 1 and p in COMANDOS:
+    if not escritura_libre and len(p) == 1 and p in COMANDOS:
         texto = texto[:-1]  # el comando no queda escrito
         ejecutar_comando(p)
     else:
@@ -233,12 +285,16 @@ def cerrar_palabra():
 
 
 def leer_boton():
-    global presionado_desde, soltado_en, morse_actual, last_activity
+    global presionado_desde, soltado_en, morse_actual, last_activity, ignorar_toque
     now = time.ticks_ms()
     if button.value() == 0:
         if presionado_desde is None:
             presionado_desde = now
             last_activity = now
+            if not pantalla_on:
+                prender_pantalla()
+                dibujar()
+                ignorar_toque = True
         elif time.ticks_diff(now, presionado_desde) > T_DORMIR:
             presionado_desde = None
             go_to_sleep()
@@ -249,6 +305,10 @@ def leer_boton():
         return
     dur = time.ticks_diff(now, presionado_desde)
     presionado_desde = None
+    if ignorar_toque:
+        ignorar_toque = False
+        soltado_en = now
+        return
     if dur < T_REBOTE:
         return
     morse_actual += "." if dur < T_PUNTO_MAX else "-"
@@ -312,9 +372,7 @@ def check_incoming_frame():
         if cmd == "FRAME":
             data = read_frame(conn)
             if len(data) == FRAME_BYTES:
-                oled.buffer[:] = data
-                oled.show()
-                last_activity = time.ticks_ms()
+                mostrar_frame(data)
             else:
                 print("Frame incompleto:", len(data), "bytes")
         elif cmd == "RESET":
@@ -377,6 +435,26 @@ def leer_peticion(conn):
     return metodo, ruta, params, cuerpo
 
 
+def servir_archivo(conn, nombre, tipo):
+    try:
+        f = open(nombre, "rb")
+    except OSError:
+        responder(conn, "404 Not Found", {"error": "falta " + nombre + " en la placa"})
+        return
+    try:
+        conn.sendall((
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: " + tipo + "\r\n"
+            "Connection: close\r\n\r\n").encode())
+        while True:
+            pedazo = f.read(1024)
+            if not pedazo:
+                break
+            conn.sendall(pedazo)
+    finally:
+        f.close()
+
+
 def responder(conn, codigo, datos=None):
     cuerpo = json.dumps(datos).encode() if datos is not None else b""
     conn.sendall((
@@ -406,11 +484,15 @@ def check_http():
         metodo, ruta, params, cuerpo = leer_peticion(conn)
         if metodo == "OPTIONS":
             responder(conn, "204 No Content")
+        elif ruta in ("/", "/index.html") and metodo == "GET":
+            servir_archivo(conn, "index.html", "text/html; charset=utf-8")
         elif ruta == "/estado":
             responder(conn, "200 OK", {
                 "wifi": wlan.isconnected(),
                 "bluetooth": ble.active(),
                 "texto": texto,
+                "escritura_libre": escritura_libre,
+                "pantalla": pantalla_on,
                 "comandos": sorted(COMANDOS.keys()),
             })
         elif params.get("clave") != cfg.SHARED_SECRET:
@@ -418,9 +500,7 @@ def check_http():
             responder(conn, "403 Forbidden", {"error": "clave incorrecta"})
         elif ruta == "/frame" and metodo == "POST":
             if len(cuerpo) == FRAME_BYTES:
-                oled.buffer[:] = cuerpo
-                oled.show()
-                last_activity = time.ticks_ms()
+                mostrar_frame(cuerpo)
                 responder(conn, "200 OK", {"ok": True})
             else:
                 responder(conn, "400 Bad Request",
@@ -463,12 +543,13 @@ def esperar_que_suelte():
 
 
 def wake_up():
-    global state, last_activity, soltado_en, texto, palabra, morse_actual
-    oled.poweron()
+    global state, last_activity, soltado_en, texto, palabra, morse_actual, escritura_libre
+    prender_pantalla()
     show_lines("Bienvenido!", "Que necesita?")
     esperar_que_suelte()  # el toque que despierta no cuenta como morse
     time.sleep_ms(1500)
     texto = palabra = morse_actual = ""
+    escritura_libre = False
     state = STATE_AWAKE
     soltado_en = last_activity = time.ticks_ms()
     print("Despierto, esperando morse")
@@ -476,18 +557,21 @@ def wake_up():
 
 
 def go_to_sleep():
-    global state
+    global state, pantalla_on
     wifi_off()
     ble.active(False)
     oled.fill(0)
     oled.show()
     oled.poweroff()
+    pantalla_on = False
     state = STATE_SLEEP
     print("Dormido")
 
 
 def main():
+    global pantalla_on
     oled.poweroff()  # arrancamos dormidos, la pantalla apagada
+    pantalla_on = False
     while True:
         if state == STATE_SLEEP:
             if button.value() == 0:
@@ -500,14 +584,17 @@ def main():
                 revisar_pausas()
                 check_incoming_frame()
                 check_http()
-                if time.ticks_diff(time.ticks_ms(), last_activity) > cfg.IDLE_TIMEOUT_MS:
+                quieto = time.ticks_diff(time.ticks_ms(), last_activity)
+                if quieto > cfg.IDLE_TIMEOUT_MS:
                     go_to_sleep()
+                elif pantalla_on and quieto > SCREEN_TIMEOUT_MS:
+                    apagar_pantalla()
         time.sleep_ms(10)
 
 
 def modo_edicion_pedido():
-    """Al arrancar damos unos segundos para tocar BOOT y entrar en modo edicion."""
-    oled.poweron()
+    """Al arrancar damos unos segundos para tocar el boton y entrar en modo edicion."""
+    prender_pantalla()
     show_lines("BOOT = editar", "(2 segundos)")
     t0 = time.ticks_ms()
     while time.ticks_diff(time.ticks_ms(), t0) < T_VENTANA_EDICION:
