@@ -28,6 +28,7 @@ import network
 import usocket as socket
 import time
 import json
+import select
 import machine
 import framebuf
 import bluetooth
@@ -76,6 +77,9 @@ state = STATE_SLEEP
 last_activity = time.ticks_ms()
 srv_socket = None
 http_socket = None
+http_pendientes = []  # [conn, addr, t0]: conexiones que todavia no mandaron nada
+MAX_PENDIENTES = 6
+T_PENDIENTE = 5000    # una conexion callada mas de esto se cierra
 
 texto = ""
 palabra = ""
@@ -175,6 +179,12 @@ def wifi_off():
             except Exception:
                 pass
     srv_socket = http_socket = None
+    for c in http_pendientes:
+        try:
+            c[0].close()
+        except Exception:
+            pass
+    http_pendientes.clear()
     try:
         wlan.disconnect()
     except Exception:
@@ -186,7 +196,7 @@ def abrir_servidor(puerto):
     s = socket.socket()
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind(('0.0.0.0', puerto))
-    s.listen(2)
+    s.listen(4)
     s.settimeout(0)  # no bloqueante
     return s
 
@@ -471,14 +481,44 @@ def responder(conn, codigo, datos=None):
 
 
 def check_http():
-    global last_activity
+    """Acepta conexiones sin bloquear y solo atiende las que ya mandaron algo.
+
+    Chrome abre conexiones "de reserva" que no mandan nada; si las leyeramos
+    de una, la placa se quedaria trabada esperando.
+    """
     if http_socket is None:
         return
-    try:
-        conn, addr = http_socket.accept()
-    except OSError:
+    while len(http_pendientes) < MAX_PENDIENTES:
+        try:
+            conn, addr = http_socket.accept()
+        except OSError:
+            break
+        http_pendientes.append([conn, addr, time.ticks_ms()])
+    if not http_pendientes:
         return
-    conn.settimeout(3)
+
+    poller = select.poll()
+    for c in http_pendientes:
+        poller.register(c[0], select.POLLIN)
+    listos = [ev[0] for ev in poller.poll(0)]
+
+    ahora = time.ticks_ms()
+    for c in http_pendientes[:]:
+        conn, addr, t0 = c
+        if conn in listos:
+            http_pendientes.remove(c)
+            atender_http(conn, addr)
+        elif time.ticks_diff(ahora, t0) > T_PENDIENTE:
+            http_pendientes.remove(c)
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def atender_http(conn, addr):
+    global last_activity
+    conn.settimeout(2)
     despues = None  # lo que se ejecuta una vez cerrada la conexion
     try:
         metodo, ruta, params, cuerpo = leer_peticion(conn)
