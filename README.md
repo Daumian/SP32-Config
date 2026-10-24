@@ -155,10 +155,14 @@ de una palabra (por ejemplo "BOX"), queda como texto normal.
 | **B** | `-...` | Muestra si el **Bluetooth** está ON/OFF y lo cambia |
 | **W** | `.--` | Muestra si el **WiFi** está ON/OFF y lo cambia (al prender muestra la IP) |
 | **X** | `-..-` | Muestra la imagen `IMAGEN_X` (de `imagenes.py`) 3 segundos |
-| **E** | `.` | **Escritura libre**: se apagan los comandos y escribimos lo que queramos. **8 puntos** (`........`) para salir |
+| **M** | `--` | **Escritura libre**: se apagan los comandos y escribimos lo que queramos. **8 puntos** (`........`) para salir |
 
 Abajo a la derecha de la pantalla aparece una **W** si el WiFi está prendido y
-una **B** si el Bluetooth está prendido, y una **E** en escritura libre. Para sumar comandos nuevos se agrega
+una **B** si el Bluetooth está prendido, y una **M** en escritura libre.
+
+El texto en morse se escribe con letra normal: **3 renglones de 16 letras**.
+Cuando se llenan, sube un renglón. Con `TEXTO_GRANDE = True` en `config.py`
+vuelve la letra doble (8 letras). Para sumar comandos nuevos se agrega
 una función y una letra al diccionario `COMANDOS` en `main.py`.
 
 - Al enchufarlo arranca **dormido**, con WiFi y Bluetooth apagados.
@@ -247,6 +251,7 @@ Se arma copiando `esp32/config.example.py` como `config.py`.
 | `BUTTON_PIN` | 0 (botón BOOT) |
 | `SCREEN_TIMEOUT_MS` | Cuánto tarda en apagar la pantalla (opcional, 3 min) |
 | `IDLE_TIMEOUT_MS` | Cuánto tarda en dormirse del todo (10 min) |
+| `TEXTO_GRANDE` | `True` = morse con letra doble (opcional, `False` por defecto) |
 
 ### `app.py` (PC)
 
@@ -273,6 +278,19 @@ Se arma copiando `esp32/config.example.py` como `config.py`.
 4. Chequear que el punto de arriba a la derecha esté verde.
 5. Mandar texto, imagen o GIF.
 6. Al terminar, mantener BOOT 2 s (o esperar los 10 min).
+
+---
+
+### 🔋 Sin la PC (con batería)
+
+El firmware vive en la placa: la PC solo hace falta para cambiarle el código.
+Para usarlo suelto alcanza con darle energía por el USB:
+
+- **Power bank** común + cable USB: lo más fácil. Algunos se apagan solos si
+  el consumo es bajo (por ejemplo con la placa dormida); si pasa, probar otro.
+- El panel se abre desde el celu en `http://<IP del ESP32>` (ver sección 6),
+  siempre que el celu y la placa estén en el **mismo WiFi**.
+- Fuera de casa: poner en `config.py` el hotspot del celu como red WiFi.
 
 ---
 
@@ -344,7 +362,7 @@ Lo que fuimos aprendiendo (y rompiendo) en el camino:
     (GPIO 4, cambiando `BUTTON_PIN` en `config.py`).
 13. **Panel web sin Python**: `pc/index.html` convierte todo en el navegador
     y se lo manda al ESP32 por HTTP.
-14. **Escritura libre y ahorro**: comando **E** para escribir sin comandos
+14. **Escritura libre y ahorro**: comando **M** (`--`) para escribir sin comandos
     (8 puntos para salir), pantalla que se apaga a los 3 min y la placa
     sirviendo el panel para usarlo desde el celu.
 
