@@ -1,7 +1,7 @@
-# main.py - ESP32 + OLED SSD1306 (128x32) + boton BOOT, manejado en morse
+# main.py - ESP32 + OLED SSD1306 (128x32) + boton (cfg.BUTTON_PIN), manejado en morse
 #
 # Primer toque: despierta y saluda ("Bienvenido / Que necesita?").
-# Despues el boton BOOT es una llave de morse:
+# Despues el boton es una llave de morse:
 #   toque corto = punto, toque largo = raya
 #   pausa corta = cierra la letra, pausa larga = cierra la palabra
 #   mantener apretado 2 s = dormir
@@ -13,10 +13,18 @@
 #   "clave:RESET\n"              -> reinicia la placa
 #   "clave\n" + 512 bytes        -> igual que FRAME (formato viejo)
 #   conexion vacia               -> ping de /status, se ignora en silencio
+#
+# Y tambien un mini servidor HTTP (cfg.HTTP_PORT, 80 por defecto) para
+# pc/index.html. Todas las rutas menos /estado piden ?clave=SHARED_SECRET:
+#   GET  /estado                 -> JSON con wifi, bluetooth y texto
+#   POST /frame?clave=...        -> cuerpo de 512 bytes, se dibuja
+#   POST /comando?clave=...&letra=B  -> ejecuta un comando de COMANDOS
+#   POST /reset?clave=...        -> reinicia la placa
 
 import network
 import usocket as socket
 import time
+import json
 import machine
 import framebuf
 import bluetooth
@@ -28,6 +36,7 @@ import imagenes
 WIDTH = 128
 HEIGHT = 32
 FRAME_BYTES = WIDTH * HEIGHT // 8  # 512
+HTTP_PORT = getattr(cfg, "HTTP_PORT", 80)
 
 i2c = I2C(0, scl=Pin(22), sda=Pin(21), freq=400000)
 oled = ssd1306.SSD1306_I2C(WIDTH, HEIGHT, i2c)
@@ -61,6 +70,7 @@ state = STATE_SLEEP
 
 last_activity = time.ticks_ms()
 srv_socket = None
+http_socket = None
 
 texto = ""
 palabra = ""
@@ -123,13 +133,14 @@ def wifi_on():
 
 
 def wifi_off():
-    global srv_socket
-    if srv_socket:
-        try:
-            srv_socket.close()
-        except Exception:
-            pass
-        srv_socket = None
+    global srv_socket, http_socket
+    for s in (srv_socket, http_socket):
+        if s:
+            try:
+                s.close()
+            except Exception:
+                pass
+    srv_socket = http_socket = None
     try:
         wlan.disconnect()
     except Exception:
@@ -137,13 +148,19 @@ def wifi_off():
     wlan.active(False)
 
 
+def abrir_servidor(puerto):
+    s = socket.socket()
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind(('0.0.0.0', puerto))
+    s.listen(2)
+    s.settimeout(0)  # no bloqueante
+    return s
+
+
 def start_frame_server():
-    global srv_socket
-    srv_socket = socket.socket()
-    srv_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    srv_socket.bind(('0.0.0.0', cfg.ESP_FRAME_PORT))
-    srv_socket.listen(1)
-    srv_socket.settimeout(0)  # no bloqueante
+    global srv_socket, http_socket
+    srv_socket = abrir_servidor(cfg.ESP_FRAME_PORT)
+    http_socket = abrir_servidor(HTTP_PORT)
 
 
 # ---------------------------------------------------------------- comandos
@@ -195,16 +212,21 @@ def cerrar_letra():
     dibujar()
 
 
+def ejecutar_comando(letra):
+    global soltado_en, last_activity
+    print("Comando:", letra)
+    COMANDOS[letra]()
+    soltado_en = time.ticks_ms()
+    last_activity = soltado_en
+
+
 def cerrar_palabra():
-    global texto, palabra, soltado_en, last_activity
+    global texto, palabra
     p = palabra
     palabra = ""
     if len(p) == 1 and p in COMANDOS:
         texto = texto[:-1]  # el comando no queda escrito
-        print("Comando:", p)
-        COMANDOS[p]()
-        soltado_en = time.ticks_ms()
-        last_activity = soltado_en
+        ejecutar_comando(p)
     else:
         texto += " "
     dibujar()
@@ -312,6 +334,126 @@ def check_incoming_frame():
             pass
 
 
+# ---------------------------------------------------------------- HTTP (para pc/index.html)
+
+def unquote(s):
+    s = s.replace("+", " ")
+    partes = s.split("%")
+    out = partes[0]
+    for p in partes[1:]:
+        try:
+            out += chr(int(p[:2], 16)) + p[2:]
+        except ValueError:
+            out += "%" + p
+    return out
+
+
+def leer_peticion(conn):
+    data = b""
+    while b"\r\n\r\n" not in data and len(data) < 2048:
+        chunk = conn.recv(256)
+        if not chunk:
+            break
+        data += chunk
+    cabeza, _, cuerpo = data.partition(b"\r\n\r\n")
+    lineas = cabeza.decode().split("\r\n")
+    metodo, ruta, _ = lineas[0].split(" ", 2)
+    largo = 0
+    for linea in lineas[1:]:
+        k, _, v = linea.partition(":")
+        if k.strip().lower() == "content-length":
+            largo = min(int(v.strip()), 4096)
+    while len(cuerpo) < largo:
+        chunk = conn.recv(largo - len(cuerpo))
+        if not chunk:
+            break
+        cuerpo += chunk
+    ruta, _, qs = ruta.partition("?")
+    params = {}
+    for par in qs.split("&"):
+        k, _, v = par.partition("=")
+        if k:
+            params[k] = unquote(v)
+    return metodo, ruta, params, cuerpo
+
+
+def responder(conn, codigo, datos=None):
+    cuerpo = json.dumps(datos).encode() if datos is not None else b""
+    conn.sendall((
+        "HTTP/1.1 " + codigo + "\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+        "Access-Control-Allow-Headers: *\r\n"
+        "Access-Control-Allow-Private-Network: true\r\n"
+        "Content-Type: application/json\r\n"
+        "Content-Length: " + str(len(cuerpo)) + "\r\n"
+        "Connection: close\r\n\r\n").encode())
+    if cuerpo:
+        conn.sendall(cuerpo)
+
+
+def check_http():
+    global last_activity
+    if http_socket is None:
+        return
+    try:
+        conn, addr = http_socket.accept()
+    except OSError:
+        return
+    conn.settimeout(3)
+    despues = None  # lo que se ejecuta una vez cerrada la conexion
+    try:
+        metodo, ruta, params, cuerpo = leer_peticion(conn)
+        if metodo == "OPTIONS":
+            responder(conn, "204 No Content")
+        elif ruta == "/estado":
+            responder(conn, "200 OK", {
+                "wifi": wlan.isconnected(),
+                "bluetooth": ble.active(),
+                "texto": texto,
+                "comandos": sorted(COMANDOS.keys()),
+            })
+        elif params.get("clave") != cfg.SHARED_SECRET:
+            print("HTTP: clave incorrecta desde", addr[0])
+            responder(conn, "403 Forbidden", {"error": "clave incorrecta"})
+        elif ruta == "/frame" and metodo == "POST":
+            if len(cuerpo) == FRAME_BYTES:
+                oled.buffer[:] = cuerpo
+                oled.show()
+                last_activity = time.ticks_ms()
+                responder(conn, "200 OK", {"ok": True})
+            else:
+                responder(conn, "400 Bad Request",
+                          {"error": "el frame tiene que ser de 512 bytes"})
+        elif ruta == "/comando" and metodo == "POST":
+            letra = params.get("letra", "").upper()
+            if letra in COMANDOS:
+                responder(conn, "200 OK", {"ok": True, "letra": letra})
+                despues = letra
+            else:
+                responder(conn, "404 Not Found", {"error": "comando desconocido"})
+        elif ruta == "/reset" and metodo == "POST":
+            responder(conn, "200 OK", {"ok": True})
+            despues = "RESET"
+        else:
+            responder(conn, "404 Not Found", {"error": "ruta desconocida"})
+    except Exception as e:
+        print("Error HTTP:", e)
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+    if despues == "RESET":
+        show_lines("Reiniciando...")
+        time.sleep_ms(300)
+        machine.reset()
+    elif despues:
+        ejecutar_comando(despues)
+        dibujar()
+
+
 # ---------------------------------------------------------------- dormir / despertar
 
 def esperar_que_suelte():
@@ -357,6 +499,7 @@ def main():
             if state == STATE_AWAKE:
                 revisar_pausas()
                 check_incoming_frame()
+                check_http()
                 if time.ticks_diff(time.ticks_ms(), last_activity) > cfg.IDLE_TIMEOUT_MS:
                     go_to_sleep()
         time.sleep_ms(10)

@@ -13,7 +13,7 @@ procesamiento vive en la PC.
 |---|---|
 | **Placa** | ESP32-WROOM-32 (tipo NodeMCU / DevKit), 4 MB de flash, WiFi + Bluetooth |
 | **Pantalla** | OLED 0.96", **128 x 32 px**, chip SSD1306, I2C (dirección `0x3C`) |
-| **Botón** | El botón **BOOT** de la placa (GPIO 0), el que está junto al USB |
+| **Botón** | Externo en **GPIO 4** (el de morse). También sirve el **BOOT** (GPIO 0) poniendo `BUTTON_PIN = 0` |
 | **Protoboard + jumpers** | Para el montaje sin soldar |
 | **LED + resistencia** | Componentes de prueba (no se usan en este firmware) |
 | **Parlante chico** | JST, ~8 Ω / 0.5 W. Pendiente: iría a GPIO 25 con resistencia en serie |
@@ -64,6 +64,8 @@ SP32-Config/
 │   ├── main.py              firmware (morse + comandos + frames)
 │   ├── imagenes.py          imágenes de 512 bytes (IMAGEN_X)
 │   └── config.example.py    plantilla: copiar como config.py y completar
+├── pc/
+│   └── index.html           panel web: doble clic y listo, sin Python
 └── pruebas/                 scripts sueltos para probar cosas desde Thonny
     ├── 01_chequeo_driver.py
     ├── 02_hola_pantalla.py
@@ -72,9 +74,10 @@ SP32-Config/
     └── 05_morse.py
 ```
 
-> 📌 La webapp (`app.py`, `templates/index.html`, `requirements.txt`,
-> `iniciar.bat`) todavía vive solo en la PC, en la carpeta `visual/`.
-> Pendiente: sumarla al repo en una carpeta `pc/`.
+> 📌 La webapp vieja con Flask (`app.py`, `templates/index.html`,
+> `requirements.txt`, `iniciar.bat`) vive solo en la PC, en la carpeta
+> `visual/`. Sigue andando por el puerto 8888, pero ahora la reemplaza
+> `pc/index.html`, que no necesita Python.
 
 ### En el ESP32 (raíz del dispositivo)
 
@@ -167,32 +170,46 @@ una función y una letra al diccionario `COMANDOS` en `main.py`.
 
 ---
 
-## 6. 🌐 La webapp
+## 6. 🌐 El panel web (`pc/index.html`)
 
-Se abre en `http://localhost:5000` (o desde el celu con la IP de la PC).
+Un solo archivo HTML: **doble clic** y se abre en el navegador. No necesita
+Python, Flask ni nada instalado. La conversión a 128x32 en blanco y negro
+(con dithering) la hace el propio navegador, y le manda los frames al ESP32
+por **HTTP** (puerto 80).
 
-- **Mensaje de texto**: si entra en pantalla se centra; si es largo se desliza
-  como cartel de LED.
-- **Imagen**: se convierte a 128x32 en blanco y negro. Checkbox **Negativo**
-  para invertir blanco/negro.
-- **GIF**: se convierte cuadro por cuadro y se reproduce en loop. También
-  tiene checkbox **Negativo**.
-- **Indicador arriba a la derecha**: punto verde/rojo que dice si el ESP32 está
-  conectado. Se actualiza cada 10 s (sin mandarle datos).
-  - Botón **Verificar**: chequea al instante.
-  - Botón **Reiniciar**: le manda `RESET` por WiFi (solo sirve si el ESP32
-    todavía responde).
+1. En el ESP32: despertarlo y mandar **W** (`.--`) en morse → anotar la IP.
+2. Abrir `pc/index.html` (Chrome o Edge), poner la **IP** y la **clave**
+   (`SHARED_SECRET`). Quedan guardadas en el navegador.
+3. Si Chrome pregunta si dejamos que la página acceda a **dispositivos de la
+   red local**, decir que sí.
 
-### Rutas del servidor
+Qué tiene:
+
+- **Indicador** verde/rojo arriba a la derecha (se actualiza cada 10 s) y el
+  texto que venimos escribiendo en morse.
+- **Vista previa** de lo que se ve en la OLED.
+- **Texto**: si entra se centra; si es largo se desliza como cartel de LED.
+  Tamaño chico/mediano/grande y **Negativo**.
+- **Imagen o GIF**: entera o recortada, dithering y negativo. Los GIF
+  animados se reproducen en loop.
+- **Comandos**: los mismos del morse (B, X, W) y **Reiniciar**.
+- **Detener** frena una animación o un texto deslizante.
+
+### Rutas HTTP del ESP32
+
+Todas menos `/estado` llevan `?clave=SHARED_SECRET`.
 
 | Ruta | Método | Función |
 |---|---|---|
-| `/` | GET | La página |
-| `/send_text` | POST | Envía un texto |
-| `/upload_image` | POST | Envía una imagen (`invert` opcional) |
-| `/upload_gif` | POST | Envía un GIF (`invert` opcional) |
-| `/status` | GET | Dice si el ESP32 está despierto |
-| `/restart` | POST | Reinicia el ESP32 |
+| `/estado` | GET | JSON con `wifi`, `bluetooth`, `texto` y `comandos` |
+| `/frame` | POST | Cuerpo de 512 bytes (`MONO_VLSB`): se dibuja |
+| `/comando?letra=B` | POST | Ejecuta un comando, igual que en morse |
+| `/reset` | POST | Reinicia la placa |
+
+### La webapp vieja (Flask, carpeta `visual/` en la PC)
+
+Sigue funcionando por TCP (puerto 8888) con el mismo protocolo de la sección 4.
+Rutas: `/`, `/send_text`, `/upload_image`, `/upload_gif`, `/status`, `/restart`.
 
 ---
 
@@ -205,7 +222,8 @@ Se arma copiando `esp32/config.example.py` como `config.py`.
 | Variable | Qué es |
 |---|---|
 | `WIFI_SSID` / `WIFI_PASS` | La red WiFi (2.4 GHz) |
-| `ESP_FRAME_PORT` | Puerto TCP donde escucha (8888) |
+| `ESP_FRAME_PORT` | Puerto TCP para la webapp vieja (8888) |
+| `HTTP_PORT` | Puerto del panel web (opcional, 80 por defecto) |
 | `SHARED_SECRET` | Clave compartida con la PC |
 | `BUTTON_PIN` | 0 (botón BOOT) |
 | `IDLE_TIMEOUT_MS` | Cuánto tarda en dormirse solo (10 min) |
@@ -231,7 +249,7 @@ Se arma copiando `esp32/config.example.py` como `config.py`.
 
 1. Enchufar el ESP32.
 2. Tocar BOOT → "Bienvenido!". Mandar **W** (`.--`) → esperar la IP en pantalla.
-3. Doble clic a `iniciar.bat` → se abre la web.
+3. Doble clic a `pc/index.html` → se abre el panel.
 4. Chequear que el punto de arriba a la derecha esté verde.
 5. Mandar texto, imagen o GIF.
 6. Al terminar, mantener BOOT 2 s (o esperar los 10 min).
@@ -302,7 +320,10 @@ Lo que fuimos aprendiendo (y rompiendo) en el camino:
     `/status`. `config.py` sale de una plantilla y no se sube a GitHub.
 12. **Todo en morse**: el BOOT pasa a ser llave de morse. Comandos de una
     letra (B Bluetooth, W WiFi, X imagen), saludo al despertar y modo edición
-    con ventana de 2 s después del reset.
+    con ventana de 2 s después del reset. El morse pasa al botón externo
+    (GPIO 4, cambiando `BUTTON_PIN` en `config.py`).
+13. **Panel web sin Python**: `pc/index.html` convierte todo en el navegador
+    y se lo manda al ESP32 por HTTP.
 
 ---
 
@@ -346,7 +367,6 @@ Lo que fuimos aprendiendo (y rompiendo) en el camino:
 
 ## 14. 🔭 Ideas / pendientes
 
-- Subir la webapp (`app.py`, `index.html`, `iniciar.bat`) al repo en `pc/`.
 - Parlante: terminar el cableado (GPIO 25 + resistencia en serie) y probar
   tonos con PWM.
 - Reservar la IP del ESP32 en el router para no tocar `app.py` cada vez.
