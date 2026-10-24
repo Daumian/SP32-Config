@@ -155,14 +155,13 @@ de una palabra (por ejemplo "BOX"), queda como texto normal.
 | **B** | `-...` | Muestra si el **Bluetooth** está ON/OFF y lo cambia |
 | **W** | `.--` | Muestra si el **WiFi** está ON/OFF y lo cambia (al prender muestra la IP) |
 | **X** | `-..-` | Muestra la imagen `IMAGEN_X` (de `imagenes.py`) 3 segundos |
-| **M** | `--` | **Escritura libre**: se apagan los comandos y escribimos lo que queramos. **8 puntos** (`........`) para salir |
+| **M** | `--` | **Escritura libre**: se apagan los comandos y escribimos lo que queramos. **más de 6 puntos seguidos** (`.......`) para salir |
 
 Abajo a la derecha de la pantalla aparece una **W** si el WiFi está prendido y
 una **B** si el Bluetooth está prendido, y una **M** en escritura libre.
 
-El texto en morse se escribe con letra normal: **3 renglones de 16 letras**.
-Cuando se llenan, sube un renglón. Con `TEXTO_GRANDE = True` en `config.py`
-vuelve la letra doble (8 letras). Para sumar comandos nuevos se agrega
+El texto en morse se ve en **un renglón de 10 letras** de tamaño mediano
+(12 px); a medida que escribimos se va corriendo como un cartel. Para sumar comandos nuevos se agrega
 una función y una letra al diccionario `COMANDOS` en `main.py`.
 
 - Al enchufarlo arranca **dormido**, con WiFi y Bluetooth apagados.
@@ -251,7 +250,6 @@ Se arma copiando `esp32/config.example.py` como `config.py`.
 | `BUTTON_PIN` | 0 (botón BOOT) |
 | `SCREEN_TIMEOUT_MS` | Cuánto tarda en apagar la pantalla (opcional, 3 min) |
 | `IDLE_TIMEOUT_MS` | Cuánto tarda en dormirse del todo (10 min) |
-| `TEXTO_GRANDE` | `True` = morse con letra doble (opcional, `False` por defecto) |
 
 ### `app.py` (PC)
 
@@ -363,7 +361,7 @@ Lo que fuimos aprendiendo (y rompiendo) en el camino:
 13. **Panel web sin Python**: `pc/index.html` convierte todo en el navegador
     y se lo manda al ESP32 por HTTP.
 14. **Escritura libre y ahorro**: comando **M** (`--`) para escribir sin comandos
-    (8 puntos para salir), pantalla que se apaga a los 3 min y la placa
+    (más de 6 puntos para salir), pantalla que se apaga a los 3 min y la placa
     sirviendo el panel para usarlo desde el celu.
 
 ---

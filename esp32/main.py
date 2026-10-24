@@ -7,7 +7,8 @@
 #   mantener apretado 2 s = dormir
 # Una palabra de UNA sola letra que este en COMANDOS ejecuta ese comando
 # (B = Bluetooth, W = WiFi, X = imagen, M = escritura libre). Cualquier otra
-# cosa queda como texto. En escritura libre no hay comandos; 8 puntos sale.
+# cosa queda como texto. En escritura libre no hay comandos; mas de 6 puntos
+# seguidos sale.
 # 3 min sin uso apaga la pantalla (el WiFi sigue); 10 min duerme del todo.
 #
 # Con el WiFi prendido escucha frames de la PC por TCP (cfg.ESP_FRAME_PORT):
@@ -42,10 +43,8 @@ HEIGHT = 32
 FRAME_BYTES = WIDTH * HEIGHT // 8  # 512
 HTTP_PORT = getattr(cfg, "HTTP_PORT", 80)
 SCREEN_TIMEOUT_MS = getattr(cfg, "SCREEN_TIMEOUT_MS", 3 * 60 * 1000)
-SALIR_ESCRITURA = "........"  # 8 puntos: la senal de error en morse
-TEXTO_GRANDE = getattr(cfg, "TEXTO_GRANDE", False)  # True = letra doble, 8 por renglon
-COLUMNAS = WIDTH // 8   # 16 letras por renglon con la letra normal
-RENGLONES = 3           # el cuarto renglon es para el morse y los indicadores
+MIN_PUNTOS_SALIR = 7  # mas de 6 puntos seguidos sale de la escritura libre
+LETRAS_VISIBLES = 10  # letra de 12 px: entran 10 en un renglon
 
 i2c = I2C(0, scl=Pin(22), sda=Pin(21), freq=400000)
 oled = ssd1306.SSD1306_I2C(WIDTH, HEIGHT, i2c)
@@ -105,8 +104,8 @@ def show_lines(*lines):
     oled.show()
 
 
-def draw_large_text(text, x, y):
-    """Texto al doble de tamano (16 px de alto)."""
+def draw_scaled_text(text, x, y, num=3, den=2):
+    """Texto agrandado num/den veces (3/2 = letra de 12 px)."""
     if not text:
         return
     width = len(text) * 8
@@ -114,21 +113,20 @@ def draw_large_text(text, x, y):
     fbuf = framebuf.FrameBuffer(buf, width, 8, framebuf.MONO_VLSB)
     fbuf.text(text, 0, 0)
     for px in range(width):
+        x0 = px * num // den
+        x1 = (px + 1) * num // den
         for py in range(8):
             if fbuf.pixel(px, py):
-                oled.fill_rect(x + px * 2, y + py * 2, 2, 2, 1)
+                y0 = py * num // den
+                y1 = (py + 1) * num // den
+                oled.fill_rect(x + x0, y + y0, x1 - x0, y1 - y0, 1)
 
 
 def dibujar():
     oled.fill(0)
-    if TEXTO_GRANDE:
-        draw_large_text(texto[-8:], 0, 0)
-    else:
-        lineas = [texto[i:i + COLUMNAS] for i in range(0, len(texto), COLUMNAS)]
-        for n, linea in enumerate(lineas[-RENGLONES:]):
-            oled.text(linea, 0, n * 8)
-    y = 22 if TEXTO_GRANDE else 24
-    oled.text(morse_actual, 0, y)
+    draw_scaled_text(texto[-LETRAS_VISIBLES:], 4, 4)
+    y = 24
+    oled.text(morse_actual[-10:], 0, y)
     # indicadores abajo a la derecha
     if escritura_libre:
         oled.text("M", 88, y)
@@ -251,7 +249,7 @@ def cmd_escritura():
     global escritura_libre, texto
     escritura_libre = True
     texto = ""
-    mensaje("Escritura libre", "8 puntos = salir", ms=2000)
+    mensaje("Escritura libre", "7+ puntos=salir", ms=2000)
 
 
 COMANDOS = {
@@ -265,16 +263,14 @@ COMANDOS = {
 # ---------------------------------------------------------------- morse
 
 def agregar_texto(t):
-    """Suma texto; si se llenan los renglones, sube un renglon entero."""
     global texto
-    texto += t
-    while len(texto) > COLUMNAS * RENGLONES:
-        texto = texto[COLUMNAS:]
+    texto = (texto + t)[-40:]
 
 
 def cerrar_letra():
     global morse_actual, texto, palabra, escritura_libre
-    if escritura_libre and morse_actual == SALIR_ESCRITURA:
+    if (escritura_libre and len(morse_actual) >= MIN_PUNTOS_SALIR
+            and morse_actual.count(".") == len(morse_actual)):
         morse_actual = ""
         escritura_libre = False
         palabra = ""
