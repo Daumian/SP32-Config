@@ -124,6 +124,7 @@
     <div class="row">
       <button class="cmd" data-letra="B"><b>B</b><small>-...</small>Bluetooth</button>
       <button class="cmd" data-letra="X"><b>X</b><small>-..-</small>Imagen</button>
+      <button class="cmd" data-letra="E"><b>E</b><small>.</small>Escritura libre</button>
       <button class="cmd" data-letra="W"><b>W</b><small>.--</small>Apagar WiFi</button>
       <button class="cmd" id="btnReset"><b>⟳</b><small>reset</small>Reiniciar</button>
     </div>
@@ -140,7 +141,9 @@ const pctx = preview.getContext("2d");
 // ---------- configuración guardada en el navegador
 function guardado(k, def) { try { return localStorage.getItem(k) ?? def; } catch { return def; } }
 function guardar(k, v) { try { localStorage.setItem(k, v); } catch {} }
-$("ip").value = guardado("esp_ip", "");
+// si la página la sirve la propia placa, la IP es la de la barra de direcciones
+const desdePlaca = location.protocol.startsWith("http");
+$("ip").value = desdePlaca ? location.host : guardado("esp_ip", "");
 $("clave").value = guardado("esp_clave", "");
 $("ip").addEventListener("change", () => guardar("esp_ip", $("ip").value.trim()));
 $("clave").addEventListener("change", () => guardar("esp_clave", $("clave").value));
@@ -167,7 +170,7 @@ async function verificar() {
   if (!$("ip").value.trim()) { ponerEstado(false, "Falta la IP"); return; }
   try {
     const e = await pedir(base() + "/estado", {}, 2500);
-    ponerEstado(true, "Conectado" + (e.bluetooth ? " · BT on" : ""));
+    ponerEstado(true, "Conectado" + (e.bluetooth ? " · BT on" : "") + (e.escritura_libre ? " · escritura libre" : ""));
     $("textoPlaca").textContent = e.texto ? "Texto escrito en morse: " + e.texto : "";
   } catch {
     ponerEstado(false, "Dormido o sin WiFi");

@@ -85,6 +85,7 @@ SP32-Config/
 ├── boot.py                  el original de fábrica (no tocar)
 ├── main.py                  nuestro firmware
 ├── imagenes.py              imágenes para los comandos
+├── index.html               el panel web (copia de pc/index.html, opcional)
 ├── config.py                WiFi, puerto, clave, pin, timeout
 └── lib/
     └── ssd1306.py           driver de la pantalla
@@ -154,14 +155,18 @@ de una palabra (por ejemplo "BOX"), queda como texto normal.
 | **B** | `-...` | Muestra si el **Bluetooth** está ON/OFF y lo cambia |
 | **W** | `.--` | Muestra si el **WiFi** está ON/OFF y lo cambia (al prender muestra la IP) |
 | **X** | `-..-` | Muestra la imagen `IMAGEN_X` (de `imagenes.py`) 3 segundos |
+| **E** | `.` | **Escritura libre**: se apagan los comandos y escribimos lo que queramos. **8 puntos** (`........`) para salir |
 
 Abajo a la derecha de la pantalla aparece una **W** si el WiFi está prendido y
-una **B** si el Bluetooth está prendido. Para sumar comandos nuevos se agrega
+una **B** si el Bluetooth está prendido, y una **E** en escritura libre. Para sumar comandos nuevos se agrega
 una función y una letra al diccionario `COMANDOS` en `main.py`.
 
 - Al enchufarlo arranca **dormido**, con WiFi y Bluetooth apagados.
 - Para mandar cosas desde la PC, primero prendemos el WiFi con **W**.
-- A los **10 minutos sin actividad** se duerme solo (`IDLE_TIMEOUT_MS`).
+- A los **3 minutos sin uso** se apaga solo la pantalla (`SCREEN_TIMEOUT_MS`).
+  El WiFi sigue prendido. El primer toque la prende sin escribir nada, y si
+  llega algo desde la web también se prende sola.
+- A los **10 minutos sin actividad** se duerme del todo (`IDLE_TIMEOUT_MS`).
 - **Modo edición**: al reiniciar (botón EN), la pantalla dice
   "BOOT = editar (2 segundos)". Si tocamos BOOT **en esos 2 segundos**,
   `main()` no corre y Thonny puede usar la placa sin "Device is busy".
@@ -195,13 +200,27 @@ Qué tiene:
 - **Comandos**: los mismos del morse (B, X, W) y **Reiniciar**.
 - **Detener** frena una animación o un texto deslizante.
 
+### 📱 Usarlo desde el celu (u otro aparato)
+
+Cualquier aparato con navegador **en el mismo WiFi** sirve. Para no tener que
+pasarle el archivo, subimos `index.html` **a la placa** y la placa misma
+sirve la página:
+
+1. En Thonny (modo edición): panel **Archivos** → arriba, en *Este equipo*,
+   buscamos `index.html` → clic derecho → **Subir a /**.
+2. Desde el celu (o cualquier aparato): `http://192.168.1.53` (la IP del
+   ESP32). La IP se completa sola; solo falta la clave.
+
+> 💡 En iPhone (Safari) los GIF se ven como imagen fija; lo demás anda igual.
+
 ### Rutas HTTP del ESP32
 
 Todas menos `/estado` llevan `?clave=SHARED_SECRET`.
 
 | Ruta | Método | Función |
 |---|---|---|
-| `/estado` | GET | JSON con `wifi`, `bluetooth`, `texto` y `comandos` |
+| `/` | GET | El panel (`index.html` guardado en la placa) |
+| `/estado` | GET | JSON con `wifi`, `bluetooth`, `texto`, `escritura_libre`, `pantalla` y `comandos` |
 | `/frame` | POST | Cuerpo de 512 bytes (`MONO_VLSB`): se dibuja |
 | `/comando?letra=B` | POST | Ejecuta un comando, igual que en morse |
 | `/reset` | POST | Reinicia la placa |
@@ -226,7 +245,8 @@ Se arma copiando `esp32/config.example.py` como `config.py`.
 | `HTTP_PORT` | Puerto del panel web (opcional, 80 por defecto) |
 | `SHARED_SECRET` | Clave compartida con la PC |
 | `BUTTON_PIN` | 0 (botón BOOT) |
-| `IDLE_TIMEOUT_MS` | Cuánto tarda en dormirse solo (10 min) |
+| `SCREEN_TIMEOUT_MS` | Cuánto tarda en apagar la pantalla (opcional, 3 min) |
+| `IDLE_TIMEOUT_MS` | Cuánto tarda en dormirse del todo (10 min) |
 
 ### `app.py` (PC)
 
@@ -324,6 +344,9 @@ Lo que fuimos aprendiendo (y rompiendo) en el camino:
     (GPIO 4, cambiando `BUTTON_PIN` en `config.py`).
 13. **Panel web sin Python**: `pc/index.html` convierte todo en el navegador
     y se lo manda al ESP32 por HTTP.
+14. **Escritura libre y ahorro**: comando **E** para escribir sin comandos
+    (8 puntos para salir), pantalla que se apaga a los 3 min y la placa
+    sirviendo el panel para usarlo desde el celu.
 
 ---
 
