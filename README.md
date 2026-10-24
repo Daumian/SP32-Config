@@ -61,7 +61,8 @@ SP32-Config/
 ├── README.md
 ├── .gitignore               ignora config.py (tiene la clave del WiFi)
 ├── esp32/                   -> se sube al ESP32 con Thonny
-│   ├── main.py              firmware
+│   ├── main.py              firmware (morse + comandos + frames)
+│   ├── imagenes.py          imágenes de 512 bytes (IMAGEN_X)
 │   └── config.example.py    plantilla: copiar como config.py y completar
 └── pruebas/                 scripts sueltos para probar cosas desde Thonny
     ├── 01_chequeo_driver.py
@@ -80,6 +81,7 @@ SP32-Config/
 ```
 ├── boot.py                  el original de fábrica (no tocar)
 ├── main.py                  nuestro firmware
+├── imagenes.py              imágenes para los comandos
 ├── config.py                WiFi, puerto, clave, pin, timeout
 └── lib/
     └── ssd1306.py           driver de la pantalla
@@ -127,19 +129,41 @@ bytes son la página de arriba, los siguientes 128 la segunda, y así:
 
 ---
 
-## 5. 🔘 El botón (BOOT, GPIO 0)
+## 5. 🔘 El botón (BOOT, GPIO 0) y el morse 📡
 
-| Situación | Un toque hace... |
-|---|---|
-| ESP32 dormido | **Despierta**: prende pantalla, conecta WiFi, muestra "Listo" + IP |
-| ESP32 despierto | **Duerme**: apaga WiFi y pantalla |
+Todo se maneja en **morse** con el botón BOOT.
 
-- Al enchufarlo arranca **dormido** (pantalla apagada): hay que tocar BOOT.
+| Situación | Qué hacemos | Qué pasa |
+|---|---|---|
+| Dormido | Un toque | **Despierta**: "Bienvenido! / Que necesita?" y queda esperando morse |
+| Despierto | Toque corto / largo | Punto (`.`) / raya (`-`) |
+| Despierto | Pausa corta (0,6 s) | Se cierra la letra |
+| Despierto | Pausa larga (1,2 s) | Se cierra la palabra |
+| Despierto | **Mantener 2 s** | **Duerme**: apaga WiFi, Bluetooth y pantalla |
+
+### Comandos
+
+Una palabra de **una sola letra** ejecuta un comando. Si la letra está dentro
+de una palabra (por ejemplo "BOX"), queda como texto normal.
+
+| Letra | Morse | Comando |
+|---|---|---|
+| **B** | `-...` | Muestra si el **Bluetooth** está ON/OFF y lo cambia |
+| **W** | `.--` | Muestra si el **WiFi** está ON/OFF y lo cambia (al prender muestra la IP) |
+| **X** | `-..-` | Muestra la imagen `IMAGEN_X` (de `imagenes.py`) 3 segundos |
+
+Abajo a la derecha de la pantalla aparece una **W** si el WiFi está prendido y
+una **B** si el Bluetooth está prendido. Para sumar comandos nuevos se agrega
+una función y una letra al diccionario `COMANDOS` en `main.py`.
+
+- Al enchufarlo arranca **dormido**, con WiFi y Bluetooth apagados.
+- Para mandar cosas desde la PC, primero prendemos el WiFi con **W**.
 - A los **10 minutos sin actividad** se duerme solo (`IDLE_TIMEOUT_MS`).
-- **Modo edición**: si mantenemos apretado BOOT *mientras reiniciamos* la
-  placa (botón EN), `main()` no corre y el puerto queda libre para subir
-  archivos desde Thonny sin el error "Device is busy". Para volver a modo
-  normal, reiniciar **sin** apretar BOOT.
+- **Modo edición**: al reiniciar (botón EN), la pantalla dice
+  "BOOT = editar (2 segundos)". Si tocamos BOOT **en esos 2 segundos**,
+  `main()` no corre y Thonny puede usar la placa sin "Device is busy".
+  ⚠️ No hay que tener BOOT apretado *en el momento* del reset, porque así entra
+  en modo bootloader.
 
 ---
 
@@ -206,11 +230,11 @@ Se arma copiando `esp32/config.example.py` como `config.py`.
 ## 8. 🚀 Uso diario
 
 1. Enchufar el ESP32.
-2. Tocar BOOT → esperar "Listo" + IP en la pantalla.
+2. Tocar BOOT → "Bienvenido!". Mandar **W** (`.--`) → esperar la IP en pantalla.
 3. Doble clic a `iniciar.bat` → se abre la web.
 4. Chequear que el punto de arriba a la derecha esté verde.
 5. Mandar texto, imagen o GIF.
-6. Al terminar, tocar BOOT de nuevo (o esperar los 10 min).
+6. Al terminar, mantener BOOT 2 s (o esperar los 10 min).
 
 ---
 
@@ -221,10 +245,11 @@ Se arma copiando `esp32/config.example.py` como `config.py`.
 2. **Ctrl+C** en la consola para frenar `main.py`. Si dice "busy", usar el
    **modo edición** (BOOT apretado al reiniciar).
 3. Abrir `config.py` → *Guardar como* → **MicroPython device** → `config.py`.
-4. Abrir `esp32/main.py` → *Guardar como* → **MicroPython device** → `main.py`.
+4. Abrir `esp32/imagenes.py` → *Guardar como* → **MicroPython device** → `imagenes.py`.
+5. Abrir `esp32/main.py` → *Guardar como* → **MicroPython device** → `main.py`.
    (Siempre **`main.py` al final**.)
-5. Reiniciar la placa (botón EN) **sin** apretar BOOT.
-6. Tocar BOOT → en la consola tiene que aparecer `Despierto. IP: ...`.
+6. Reiniciar la placa (botón EN) y **no** tocar BOOT durante los 2 segundos.
+7. Tocar BOOT → "Bienvenido!". En la consola sale `Despierto, esperando morse`.
 
 ---
 
@@ -275,7 +300,9 @@ Lo que fuimos aprendiendo (y rompiendo) en el camino:
 11. **Firmware unificado** (este repo): `main.py` ahora entiende `FRAME`,
     `RESET` y el formato viejo, y no ensucia la consola con los pings de
     `/status`. `config.py` sale de una plantilla y no se sube a GitHub.
-
+12. **Todo en morse**: el BOOT pasa a ser llave de morse. Comandos de una
+    letra (B Bluetooth, W WiFi, X imagen), saludo al despertar y modo edición
+    con ventana de 2 s después del reset.
 ---
 
 ## 12. 🩺 Problemas conocidos y soluciones
@@ -286,7 +313,8 @@ Lo que fuimos aprendiendo (y rompiendo) en el camino:
 | Pantalla cortada/apilada | Se configuró 128x64 en vez de 128x32 | Revisar que ambos lados usen 32 de alto |
 | `i2c.scan()` devuelve `[]` | Cableado SDA/SCL flojo o invertido | Revisar GPIO 21 (SDA) y 22 (SCL), y VCC a 3.3V |
 | Texto minúsculo en la pantalla | Es la fuente por defecto de 8 px | Mandar texto desde la web (se renderiza más grande) |
-| IP `0.0.0.0` en Thonny | El ESP32 está dormido, WiFi apagado | Tocar BOOT para despertarlo |
+| IP `0.0.0.0` en Thonny | WiFi apagado | Despertarlo y mandar **W** en morse |
+| Thonny: "make sure the device is not in bootloader mode" | BOOT apretado justo en el reset | Soltar EN primero y *después* tocar BOOT |
 | Pantalla apagada al enchufar | Arranca dormido a propósito | Tocar BOOT |
 | Web dice "apagado/dormido" pero la pantalla dice "Listo" | IP distinta en `app.py`, o el ESP32 se colgó | Verificar IP, `ping`, y probar Reiniciar |
 | `timed out` en la consola de Flask | El ESP32 duerme; el loop reintenta cada 2 s | Normal. Despertarlo con BOOT |
@@ -294,7 +322,7 @@ Lo que fuimos aprendiendo (y rompiendo) en el camino:
 | `/restart` da 404 | `app.py` viejo en la PC | Reemplazar por la versión completa y reiniciar el server |
 | `ConnectionError: EOF` / Thonny no encuentra el puerto | Cuelgue o brownout del ESP32 | Cable USB corto, puerto directo de la PC |
 | Reinicios solos al usar WiFi | **Caída de tensión** por los picos de corriente del WiFi | USB directo, cable corto y bueno, capacitor de 100–220 µF entre 3.3V y GND |
-| `ImportError: no module named 'config'` | Falta `config.py` en el ESP32 | Subirlo (ver sección 9) |
+| `ImportError: no module named 'config'` / `'imagenes'` | Falta ese archivo en el ESP32 | Subirlo (ver sección 9) |
 | `.bat` tira `´╗┐@echo` | El archivo se guardó con BOM | En VS Code: *Save with Encoding → UTF-8* |
 | Error `runtime.lastError` en la consola del navegador | Ruido de una extensión de Chrome | Ignorar |
 | Cambios en la web no se ven | Caché del navegador | Ctrl+Shift+R |
