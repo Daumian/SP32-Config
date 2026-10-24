@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel ESP32</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #1d2129; --muted: #646b78;
+    --border: #dde0e6; --accent: #2f6fde; --accent-text: #ffffff;
+    --ok: #1f9d55; --bad: #d64545; --screen-off: #10141a; --screen-on: #7fd8ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151a; --card: #1b1f26; --text: #e6e8ec; --muted: #9aa1ad;
+      --border: #2c323c; --accent: #5b8ff0; --accent-text: #0d1117;
+      --ok: #3ccf7a; --bad: #f06a6a; --screen-off: #05070a; --screen-on: #7fd8ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 20px; margin: 4px 0; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-top: 14px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row + .row { margin-top: 10px; }
+  label { color: var(--muted); font-size: 13px; }
+  input[type=text], input[type=password], select {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 7px; padding: 7px 9px; min-width: 0;
+  }
+  input[type=text].grow { flex: 1 1 200px; }
+  button {
+    font: inherit; border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    border-radius: 7px; padding: 7px 12px; cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .estado { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .punto { width: 11px; height: 11px; border-radius: 50%; background: var(--bad); flex: none; }
+  .punto.ok { background: var(--ok); }
+  .pantalla {
+    background: var(--screen-off); border-radius: 8px; padding: 10px;
+    display: flex; justify-content: center;
+  }
+  #preview { width: 100%; max-width: 512px; aspect-ratio: 4 / 1; image-rendering: pixelated; display: block; }
+  .muted { color: var(--muted); font-size: 13px; }
+  #log { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--muted); min-height: 1.4em; }
+  .cmd { min-width: 64px; }
+  .cmd b { font-size: 16px; }
+  .cmd small { display: block; color: var(--muted); font-family: ui-monospace, Consolas, monospace; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>📟 Panel ESP32</h1>
+    <div class="estado"><span class="punto" id="punto"></span><span id="estadoTxt">Sin conectar</span></div>
+  </header>
+
+  <section class="card">
+    <h2>🔌 Conexión</h2>
+    <div class="row">
+      <label for="ip">IP</label>
+      <input type="text" id="ip" placeholder="192.168.1.53" size="15">
+      <label for="clave">Clave</label>
+      <input type="password" id="clave" placeholder="cambiame123" size="12">
+      <button id="btnVerificar">Verificar</button>
+    </div>
+    <p class="muted">La IP aparece en la pantalla al mandar <b>W</b> (<code>.--</code>) en morse. La clave es <code>SHARED_SECRET</code> de <code>config.py</code>.</p>
+    <p class="muted" id="textoPlaca"></p>
+  </section>
+
+  <section class="card">
+    <h2>👀 Vista previa</h2>
+    <div class="pantalla"><canvas id="preview" width="128" height="32"></canvas></div>
+    <div class="row">
+      <button id="btnDetener" disabled>⏹ Detener</button>
+      <span id="log"></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>✏️ Texto</h2>
+    <div class="row">
+      <input type="text" id="texto" class="grow" placeholder="Hola desde la PC!">
+      <select id="tamano" aria-label="Tamaño">
+        <option value="12">Chico</option>
+        <option value="20" selected>Mediano</option>
+        <option value="30">Grande</option>
+      </select>
+      <button class="primary" id="btnTexto">Enviar</button>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="textoNeg"> Negativo</label>
+      <span class="muted">Si no entra en pantalla, se desliza como cartel de LED.</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>🖼️ Imagen o GIF</h2>
+    <div class="row">
+      <input type="file" id="archivo" accept="image/*">
+    </div>
+    <div class="row">
+      <select id="ajuste" aria-label="Ajuste">
+        <option value="contain">Entera (con bordes)</option>
+        <option value="cover">Llenar (recorta)</option>
+      </select>
+      <label><input type="checkbox" id="dither" checked> Dithering</label>
+      <label><input type="checkbox" id="imgNeg"> Negativo</label>
+      <button class="primary" id="btnImagen" disabled>Enviar</button>
+    </div>
+    <p class="muted">Los GIF animados se reproducen en loop (necesita Chrome o Edge).</p>
+  </section>
+
+  <section class="card">
+    <h2>📡 Comandos</h2>
+    <div class="row">
+      <button class="cmd" data-letra="B"><b>B</b><small>-...</small>Bluetooth</button>
+      <button class="cmd" data-letra="X"><b>X</b><small>-..-</small>Imagen</button>
+      <button class="cmd" data-letra="W"><b>W</b><small>.--</small>Apagar WiFi</button>
+      <button class="cmd" id="btnReset"><b>⟳</b><small>reset</small>Reiniciar</button>
+    </div>
+    <p class="muted">Son los mismos comandos del morse. Ojo: apagar el WiFi corta la conexión con esta página.</p>
+  </section>
+</main>
+
+<script>
+const W = 128, H = 32;
+const $ = (id) => document.getElementById(id);
+const preview = $("preview");
+const pctx = preview.getContext("2d");
+
+// ---------- configuración guardada en el navegador
+function guardado(k, def) { try { return localStorage.getItem(k) ?? def; } catch { return def; } }
+function guardar(k, v) { try { localStorage.setItem(k, v); } catch {} }
+$("ip").value = guardado("esp_ip", "");
+$("clave").value = guardado("esp_clave", "");
+$("ip").addEventListener("change", () => guardar("esp_ip", $("ip").value.trim()));
+$("clave").addEventListener("change", () => guardar("esp_clave", $("clave").value));
+
+function base() { return "http://" + $("ip").value.trim(); }
+function conClave(ruta, extra = "") {
+  return base() + ruta + "?clave=" + encodeURIComponent($("clave").value) + extra;
+}
+function log(msg) { $("log").textContent = msg; }
+
+async function pedir(url, opciones = {}, ms = 3000) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, { ...opciones, signal: ctl.signal });
+    const datos = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(datos.error || ("HTTP " + r.status));
+    return datos;
+  } finally { clearTimeout(t); }
+}
+
+// ---------- estado
+async function verificar() {
+  if (!$("ip").value.trim()) { ponerEstado(false, "Falta la IP"); return; }
+  try {
+    const e = await pedir(base() + "/estado", {}, 2500);
+    ponerEstado(true, "Conectado" + (e.bluetooth ? " · BT on" : ""));
+    $("textoPlaca").textContent = e.texto ? "Texto escrito en morse: " + e.texto : "";
+  } catch {
+    ponerEstado(false, "Dormido o sin WiFi");
+  }
+}
+function ponerEstado(ok, txt) {
+  $("punto").classList.toggle("ok", ok);
+  $("estadoTxt").textContent = txt;
+}
+$("btnVerificar").addEventListener("click", verificar);
+setInterval(verificar, 10000);
+verificar();
+
+// ---------- conversión a 1 bit, formato MONO_VLSB (512 bytes)
+function aMono(ctx, { dither = true, invertir = false, umbral = 128 } = {}) {
+  const px = ctx.getImageData(0, 0, W, H).data;
+  const lum = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) {
+    const a = px[i * 4 + 3] / 255;
+    lum[i] = (0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]) * a;
+  }
+  const on = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      const v = lum[i] >= umbral ? 255 : 0;
+      on[i] = v ? 1 : 0;
+      if (!dither) continue;
+      const err = lum[i] - v;  // Floyd-Steinberg
+      if (x + 1 < W) lum[i + 1] += err * 7 / 16;
+      if (y + 1 < H) {
+        if (x > 0) lum[i + W - 1] += err * 3 / 16;
+        lum[i + W] += err * 5 / 16;
+        if (x + 1 < W) lum[i + W + 1] += err * 1 / 16;
+      }
+    }
+  }
+  const buf = new Uint8Array(W * H / 8);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (on[y * W + x] ^ (invertir ? 1 : 0)) buf[(y >> 3) * W + x] |= 1 << (y & 7);
+    }
+  }
+  return buf;
+}
+
+function dibujarPreview(buf) {
+  const img = pctx.createImageData(W, H);
+  const enc = getComputedStyle(document.documentElement).getPropertyValue("--screen-on").trim() || "#7fd8ff";
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(enc.slice(i, i + 2), 16));
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      const prendido = buf[(y >> 3) * W + x] & (1 << (y & 7));
+      img.data[i] = prendido ? r : 0; img.data[i + 1] = prendido ? g : 0;
+      img.data[i + 2] = prendido ? b : 0; img.data[i + 3] = 255;
+    }
+  }
+  pctx.putImageData(img, 0, 0);
+}
+
+function lienzo(w = W, h = H) {
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+  return ctx;
+}
+
+// ---------- envío (de a un frame por vez, en loop si hay varios)
+let reproduccion = 0;  // cada envío nuevo cancela el anterior
+
+async function mandarFrame(buf) {
+  await pedir(conClave("/frame"), { method: "POST", body: buf });
+}
+
+async function reproducir(frames, demoras) {
+  const yo = ++reproduccion;
+  $("btnDetener").disabled = frames.length < 2;
+  let i = 0, errores = 0;
+  while (yo === reproduccion) {
+    const t0 = performance.now();
+    dibujarPreview(frames[i]);
+    try {
+      await mandarFrame(frames[i]);
+      errores = 0;
+      log(frames.length > 1 ? `Frame ${i + 1}/${frames.length}` : "Enviado ✅");
+    } catch (e) {
+      errores++;
+      log("No se pudo enviar: " + e.message);
+      if (errores >= 3) { detener(); return; }
+    }
+    if (frames.length < 2) break;
+    const espera = Math.max(0, demoras[i] - (performance.now() - t0));
+    await new Promise((r) => setTimeout(r, espera));
+    i = (i + 1) % frames.length;
+  }
+  if (yo === reproduccion) $("btnDetener").disabled = true;
+}
+function detener() { reproduccion++; $("btnDetener").disabled = true; log("Detenido"); }
+$("btnDetener").addEventListener("click", detener);
+
+// ---------- texto
+$("btnTexto").addEventListener("click", () => {
+  const txt = $("texto").value.trim();
+  if (!txt) return;
+  const tam = +$("tamano").value;
+  const fuente = `bold ${tam}px system-ui, sans-serif`;
+  const medir = lienzo(1, 1);
+  medir.font = fuente;
+  const ancho = Math.ceil(medir.measureText(txt).width);
+  const opts = { dither: false, invertir: $("textoNeg").checked };
+
+  if (ancho <= W) {
+    const ctx = lienzo();
+    ctx.font = fuente; ctx.fillStyle = "#fff";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(txt, W / 2, H / 2 + 1);
+    reproducir([aMono(ctx, opts)], [0]);
+    return;
+  }
+  // cartel deslizante: el texto entra por la derecha y sale por la izquierda
+  const tira = lienzo(ancho + 2 * W, H);
+  tira.font = fuente; tira.fillStyle = "#fff"; tira.textBaseline = "middle";
+  tira.fillText(txt, W, H / 2 + 1);
+  const frames = [];
+  const ctx = lienzo();
+  for (let x = 0; x <= ancho + W; x += 3) {
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(tira.canvas, x, 0, W, H, 0, 0, W, H);
+    frames.push(aMono(ctx, opts));
+  }
+  reproducir(frames, frames.map(() => 60));
+});
+$("texto").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btnTexto").click(); });
+
+// ---------- imagen / GIF
+$("archivo").addEventListener("change", () => { $("btnImagen").disabled = !$("archivo").files.length; });
+
+function encajar(ctx, fuente, fw, fh) {
+  const modo = $("ajuste").value;
+  const esc = modo === "cover" ? Math.max(W / fw, H / fh) : Math.min(W / fw, H / fh);
+  const w = fw * esc, h = fh * esc;
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(fuente, (W - w) / 2, (H - h) / 2, w, h);
+}
+
+async function framesDeGif(archivo, opts) {
+  const dec = new ImageDecoder({ data: await archivo.arrayBuffer(), type: archivo.type });
+  await dec.tracks.ready;
+  const total = Math.min(dec.tracks.selectedTrack.frameCount, 200);
+  const frames = [], demoras = [];
+  const ctx = lienzo();
+  for (let i = 0; i < total; i++) {
+    const { image } = await dec.decode({ frameIndex: i });
+    encajar(ctx, image, image.displayWidth, image.displayHeight);
+    frames.push(aMono(ctx, opts));
+    demoras.push(Math.max(60, (image.duration || 100000) / 1000));
+    image.close();
+  }
+  dec.close();
+  return { frames, demoras };
+}
+
+$("btnImagen").addEventListener("click", async () => {
+  const archivo = $("archivo").files[0];
+  if (!archivo) return;
+  const opts = { dither: $("dither").checked, invertir: $("imgNeg").checked };
+  try {
+    if (archivo.type === "image/gif" && "ImageDecoder" in window) {
+      log("Convirtiendo GIF...");
+      const { frames, demoras } = await framesDeGif(archivo, opts);
+      reproducir(frames, demoras);
+      return;
+    }
+    const bmp = await createImageBitmap(archivo);
+    const ctx = lienzo();
+    encajar(ctx, bmp, bmp.width, bmp.height);
+    reproducir([aMono(ctx, opts)], [0]);
+  } catch (e) {
+    log("No se pudo leer la imagen: " + e.message);
+  }
+});
+
+// ---------- comandos
+document.querySelectorAll("[data-letra]").forEach((b) => b.addEventListener("click", async () => {
+  const letra = b.dataset.letra;
+  if (letra === "W" && !confirm("Esto apaga el WiFi del ESP32 y la página pierde la conexión. ¿Seguimos?")) return;
+  detener();
+  try {
+    await pedir(conClave("/comando", "&letra=" + letra), { method: "POST" });
+    log("Comando " + letra + " enviado ✅");
+    setTimeout(verificar, 2000);
+  } catch (e) { log("No se pudo: " + e.message); }
+}));
+
+$("btnReset").addEventListener("click", async () => {
+  if (!confirm("¿Reiniciamos el ESP32?")) return;
+  detener();
+  try {
+    await pedir(conClave("/reset"), { method: "POST" });
+    log("Reiniciando... después hay que despertarlo y mandar W");
+  } catch (e) { log("No se pudo: " + e.message); }
+});
+
+dibujarPreview(new Uint8Array(512));
+</script>
+</body>
+</html>
