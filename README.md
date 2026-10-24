@@ -303,6 +303,7 @@ Lo que fuimos aprendiendo (y rompiendo) en el camino:
 12. **Todo en morse**: el BOOT pasa a ser llave de morse. Comandos de una
     letra (B Bluetooth, W WiFi, X imagen), saludo al despertar y modo edición
     con ventana de 2 s después del reset.
+
 ---
 
 ## 12. 🩺 Problemas conocidos y soluciones
