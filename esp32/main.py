@@ -6,7 +6,7 @@
 #   pausa corta = cierra la letra, pausa larga = cierra la palabra
 #   mantener apretado 2 s = dormir
 # Una palabra de UNA sola letra que este en COMANDOS ejecuta ese comando
-# (B = Bluetooth, W = WiFi, X = imagen, E = escritura libre). Cualquier otra
+# (B = Bluetooth, W = WiFi, X = imagen, M = escritura libre). Cualquier otra
 # cosa queda como texto. En escritura libre no hay comandos; 8 puntos sale.
 # 3 min sin uso apaga la pantalla (el WiFi sigue); 10 min duerme del todo.
 #
@@ -43,6 +43,9 @@ FRAME_BYTES = WIDTH * HEIGHT // 8  # 512
 HTTP_PORT = getattr(cfg, "HTTP_PORT", 80)
 SCREEN_TIMEOUT_MS = getattr(cfg, "SCREEN_TIMEOUT_MS", 3 * 60 * 1000)
 SALIR_ESCRITURA = "........"  # 8 puntos: la senal de error en morse
+TEXTO_GRANDE = getattr(cfg, "TEXTO_GRANDE", False)  # True = letra doble, 8 por renglon
+COLUMNAS = WIDTH // 8   # 16 letras por renglon con la letra normal
+RENGLONES = 3           # el cuarto renglon es para el morse y los indicadores
 
 i2c = I2C(0, scl=Pin(22), sda=Pin(21), freq=400000)
 oled = ssd1306.SSD1306_I2C(WIDTH, HEIGHT, i2c)
@@ -118,15 +121,21 @@ def draw_large_text(text, x, y):
 
 def dibujar():
     oled.fill(0)
-    draw_large_text(texto[-8:], 0, 0)
-    oled.text(morse_actual, 0, 22)
+    if TEXTO_GRANDE:
+        draw_large_text(texto[-8:], 0, 0)
+    else:
+        lineas = [texto[i:i + COLUMNAS] for i in range(0, len(texto), COLUMNAS)]
+        for n, linea in enumerate(lineas[-RENGLONES:]):
+            oled.text(linea, 0, n * 8)
+    y = 22 if TEXTO_GRANDE else 24
+    oled.text(morse_actual, 0, y)
     # indicadores abajo a la derecha
-    if wlan.isconnected():
-        oled.text("W", 104, 22)
-    if ble.active():
-        oled.text("B", 120, 22)
     if escritura_libre:
-        oled.text("E", 88, 22)
+        oled.text("M", 88, y)
+    if wlan.isconnected():
+        oled.text("W", 104, y)
+    if ble.active():
+        oled.text("B", 120, y)
     oled.show()
 
 
@@ -249,11 +258,19 @@ COMANDOS = {
     'B': cmd_bluetooth,
     'W': cmd_wifi,
     'X': cmd_imagen,
-    'E': cmd_escritura,
+    'M': cmd_escritura,
 }
 
 
 # ---------------------------------------------------------------- morse
+
+def agregar_texto(t):
+    """Suma texto; si se llenan los renglones, sube un renglon entero."""
+    global texto
+    texto += t
+    while len(texto) > COLUMNAS * RENGLONES:
+        texto = texto[COLUMNAS:]
+
 
 def cerrar_letra():
     global morse_actual, texto, palabra, escritura_libre
@@ -268,7 +285,7 @@ def cerrar_letra():
         return
     letra = MORSE.get(morse_actual, "?")
     morse_actual = ""
-    texto = (texto + letra)[-40:]
+    agregar_texto(letra)
     palabra += letra
     dibujar()
 
@@ -290,7 +307,7 @@ def cerrar_palabra():
         texto = texto[:-1]  # el comando no queda escrito
         ejecutar_comando(p)
     else:
-        texto += " "
+        agregar_texto(" ")
     dibujar()
 
 
