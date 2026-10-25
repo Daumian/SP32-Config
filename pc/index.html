@@ -88,7 +88,7 @@
       <input type="password" id="clave" placeholder="cambiame123" size="12">
       <button id="btnVerificar">Verificar</button>
     </div>
-    <p class="muted">La IP aparece en la pantalla al mandar <b>W</b> (<code>.--</code>) en morse. La clave es <code>SHARED_SECRET</code> de <code>config.py</code>.</p>
+    <p class="muted">La IP aparece en la pantalla al mandar <b>W</b> (<code>.--</code>) en morse. Con el WiFi propio de la placa es <code>192.168.4.1</code>. La clave es <code>SHARED_SECRET</code> de <code>config.py</code>.</p>
     <p class="muted" id="textoPlaca"></p>
   </section>
 
@@ -233,7 +233,7 @@ async function verificar() {
   if (!$("ip").value.trim()) { ponerEstado(false, "Falta la IP"); return; }
   try {
     const e = await pedir(base() + "/estado", {}, 2500);
-    ponerEstado(true, "Conectado" + (e.bluetooth ? " · BT on" : "") + (e.escritura_libre ? " · escritura libre" : ""));
+    ponerEstado(true, "Conectado" + (e.wifi_propio ? " · WiFi propio" : "") + (e.bluetooth ? " · BT on" : "") + (e.escritura_libre ? " · escritura libre" : ""));
     $("textoPlaca").textContent = e.texto ? "Texto escrito en morse: " + e.texto : "";
     if (!letrasCargadas && $("clave").value) cargarLetras();
   } catch {

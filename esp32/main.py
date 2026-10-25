@@ -13,6 +13,9 @@
 # M = escritura libre vienen de fabrica). Una letra sin codigo queda como
 # texto. En escritura libre no hay comandos; mas de 6 puntos seguidos sale.
 # Mientras tocamos la llave suena un bip en el parlantito (cfg.PIN_PARLANTE).
+# W prende el WiFi de casa; si mantenemos la llave apretada mientras pregunta,
+# crea un WiFi propio (cfg.AP_SSID / cfg.AP_PASS, panel en 192.168.4.1). Si no
+# encuentra el de casa, crea el propio solo.
 # 3 min sin uso apaga la pantalla (el WiFi sigue); 10 min duerme del todo.
 #
 # Con el WiFi prendido escucha frames de la PC por TCP (cfg.ESP_FRAME_PORT):
@@ -85,6 +88,11 @@ llaves = [button] + ([Pin(PIN_LLAVE2, Pin.IN, Pin.PULL_UP)] if PIN_LLAVE2 is not
 boton_inicio = Pin(PIN_INICIO, Pin.IN, Pin.PULL_UP) if PIN_INICIO is not None else None
 parlante = PWM(Pin(PIN_PARLANTE), freq=TONO_MORSE, duty_u16=0) if PIN_PARLANTE is not None else None
 wlan = network.WLAN(network.STA_IF)
+ap = network.WLAN(network.AP_IF)
+AP_SSID = getattr(cfg, "AP_SSID", "Morse-ESP32")
+AP_PASS = getattr(cfg, "AP_PASS", "morse1234")  # minimo 8 caracteres
+T_ELEGIR_WIFI = 2500   # cuanto espera W para ver si mantenemos la llave
+T_MANTENER = 800       # mantener la llave esto = WiFi propio
 ble = bluetooth.BLE()
 
 MORSE = {
@@ -171,6 +179,8 @@ def dibujar():
         oled.text("M", 88, y)
     if wlan.isconnected():
         oled.text("W", 104, y)
+    elif ap.active():
+        oled.text("A", 104, y)  # WiFi propio
     if ble.active():
         oled.text("B", 120, y)
     oled.show()
@@ -225,6 +235,10 @@ def wifi_off():
             except Exception:
                 pass
     srv_socket = http_socket = None
+    try:
+        ap.active(False)
+    except Exception:
+        pass
     for c in http_pendientes:
         try:
             c[0].close()
@@ -262,20 +276,64 @@ def cmd_bluetooth():
             "Ahora: " + ("ON" if ble.active() else "OFF"))
 
 
+def wifi_activo():
+    return wlan.isconnected() or ap.active()
+
+
+def wifi_propio_on():
+    """La placa crea su propia red WiFi: el celu se conecta directo a ella."""
+    ap.active(True)
+    # WPA pide 8 caracteres o mas: sin eso, red abierta. 4 = WPA/WPA2, 0 = abierta
+    seguridad = (getattr(network, "AUTH_WPA_WPA2_PSK", 4) if len(AP_PASS) >= 8
+                 else getattr(network, "AUTH_OPEN", 0))
+    clave = AP_PASS if len(AP_PASS) >= 8 else ""
+    try:  # nombres nuevos de MicroPython
+        ap.config(ssid=AP_SSID, key=clave, security=seguridad)
+    except (TypeError, ValueError, OSError):  # nombres viejos
+        ap.config(essid=AP_SSID, password=clave, authmode=seguridad)
+    start_frame_server()
+    ip = ap.ifconfig()[0]
+    print("WiFi propio:", AP_SSID, "clave:", AP_PASS, "IP:", ip)
+    mensaje("Red:" + AP_SSID, "Clave:" + AP_PASS, ip, ms=5000)
+
+
+def eligio_wifi_propio():
+    """Mientras pregunta, mantener la llave apretada = WiFi propio."""
+    fin = time.ticks_add(time.ticks_ms(), T_ELEGIR_WIFI)
+    apretada_desde = None
+    while time.ticks_diff(fin, time.ticks_ms()) > 0:
+        if llave_apretada():
+            if apretada_desde is None:
+                apretada_desde = time.ticks_ms()
+            elif time.ticks_diff(time.ticks_ms(), apretada_desde) >= T_MANTENER:
+                tono(1200, 120)
+                esperar_que_suelte()
+                return True
+        else:
+            apretada_desde = None
+        time.sleep_ms(10)
+    return False
+
+
 def cmd_wifi():
-    if wlan.isconnected():
+    if wifi_activo():
         wifi_off()
         mensaje("WiFi: ON", "Ahora: OFF")
         return
-    show_lines("WiFi: OFF", "Conectando...")
+    show_lines("WiFi casa...", "Mantene la llave", "= WiFi propio")
+    if eligio_wifi_propio():
+        wifi_propio_on()
+        return
+    show_lines("WiFi casa", "Conectando...")
     if wifi_on():
         start_frame_server()
         ip = wlan.ifconfig()[0]
         print("WiFi conectado. IP:", ip)
-        mensaje("WiFi: ON", ip, ms=3000)
+        mensaje("WiFi casa: ON", ip, ms=3000)
     else:
-        wifi_off()
-        mensaje("WiFi: OFF", "No conecto :(")
+        wlan.active(False)
+        mensaje("Sin WiFi casa", "Creo uno propio")
+        wifi_propio_on()
 
 
 COMANDOS = {  # los fijos; las demas letras usan el codigo guardado
@@ -900,7 +958,8 @@ def atender_http(conn, addr):
             servir_archivo(conn, "index.html", "text/html; charset=utf-8")
         elif ruta == "/estado":
             responder(conn, "200 OK", {
-                "wifi": wlan.isconnected(),
+                "wifi": wifi_activo(),
+                "wifi_propio": ap.active(),
                 "bluetooth": ble.active(),
                 "texto": texto,
                 "escritura_libre": escritura_libre,

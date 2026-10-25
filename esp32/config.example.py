@@ -11,6 +11,10 @@ ESP_FRAME_PORT = 8888             # puerto TCP donde escucha el ESP32
 HTTP_PORT = 80                    # puerto de la web (pc/index.html)
 SHARED_SECRET = "cambiame123"     # tiene que ser IDENTICA a la de app.py
 
+# WiFi propio (opcional): W + mantener la llave, o si no encuentra el de casa
+AP_SSID = "Morse-ESP32"           # nombre de la red que crea la placa
+AP_PASS = "morse1234"             # clave, minimo 8 caracteres
+
 BUTTON_PIN = 4                    # boton externo (0 = boton BOOT de la placa)
 SCREEN_TIMEOUT_MS = 3 * 60 * 1000  # 3 minutos sin uso -> apaga la pantalla (opcional)
 IDLE_TIMEOUT_MS = 10 * 60 * 1000  # 10 minutos sin actividad -> se duerme
