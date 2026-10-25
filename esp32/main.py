@@ -30,6 +30,7 @@
 #   GET  /letras?clave=...       -> codigo de cada letra A-Z
 #   POST /letra?clave=...&l=A    -> guarda el codigo de la letra (cuerpo = Python)
 #   POST /bloquear?clave=...&l=A&si=1  -> bloquea (si=1) o desbloquea (si=0) la letra
+#   POST /titulo?clave=...&l=A&t=Luz   -> titulo de la letra (hasta 10 letras, lo usa la H)
 #   POST /probar?clave=...       -> corre el Python del cuerpo sin guardarlo
 #   POST /reset?clave=...        -> reinicia la placa
 
@@ -66,7 +67,11 @@ FIJAS = ("W", "B")  # no se editan: sin la W no hay forma de arreglar nada por W
 CODIGO_INICIAL = {
     "X": "imagen()\n",
     "M": "escritura_libre()\n",
+    "H": "ayuda()\n",
 }
+LARGO_TITULO = 10
+TITULOS_FIJOS = {"W": "WiFi", "B": "Bluetooth"}
+TITULO_INICIAL = {"X": "Imagen", "M": "Escritura", "H": "Ayuda"}
 MIN_PUNTOS_SALIR = 7  # mas de 6 puntos seguidos sale de la escritura libre
 LETRAS_VISIBLES = 10  # letra de 12 px: entran 10 en un renglon
 
@@ -343,6 +348,67 @@ def empezar_escritura_libre():
     mensaje("Escritura libre", "7+ puntos=salir", ms=2000)
 
 
+def deslizar(txt, paso=3, ms=25):
+    """Cartel que cruza la pantalla de derecha a izquierda (letra de 12 px)."""
+    prender_pantalla()
+    txt = str(txt)
+    # dibujamos el texto agrandado una sola vez y despues solo lo corremos
+    chico = bytearray(len(txt) * 8)
+    fchico = framebuf.FrameBuffer(chico, len(txt) * 8, 8, framebuf.MONO_VLSB)
+    fchico.text(txt, 0, 0)
+    ancho = len(txt) * 12
+    grande = bytearray(ancho * 2)  # 16 px de alto = 2 paginas
+    fgrande = framebuf.FrameBuffer(grande, ancho, 16, framebuf.MONO_VLSB)
+    for px in range(len(txt) * 8):
+        x0, x1 = px * 3 // 2, (px + 1) * 3 // 2
+        for py in range(8):
+            if fchico.pixel(px, py):
+                y0, y1 = py * 3 // 2, (py + 1) * 3 // 2
+                fgrande.fill_rect(x0, y0, x1 - x0, y1 - y0, 1)
+    for x in range(WIDTH, -ancho, -paso):
+        oled.fill(0)
+        oled.blit(fgrande, x, 10)
+        oled.show()
+        esperar(ms)
+
+
+def leer_titulos():
+    try:
+        with open(CARPETA_LETRAS + "/titulos.json") as f:
+            return json.loads(f.read())
+    except (OSError, ValueError):
+        return {}
+
+
+def titulo_de(letra, titulos=None):
+    if letra in TITULOS_FIJOS:
+        return TITULOS_FIJOS[letra]
+    if titulos is None:
+        titulos = leer_titulos()
+    return titulos.get(letra, TITULO_INICIAL.get(letra, ""))
+
+
+def guardar_titulo(letra, titulo):
+    # la pantalla solo tiene letras sin acentos
+    titulo = "".join(c for c in titulo if 32 <= ord(c) < 127).strip()[:LARGO_TITULO]
+    titulos = leer_titulos()
+    titulos[letra] = titulo
+    try:
+        os.mkdir(CARPETA_LETRAS)
+    except OSError:
+        pass  # ya existia
+    with open(CARPETA_LETRAS + "/titulos.json", "w") as f:
+        f.write(json.dumps(titulos))
+    return titulo
+
+
+def ayuda():
+    """La lista de letras con algo asignado, deslizandose por la pantalla."""
+    titulos = leer_titulos()
+    partes = [l + ":" + (titulo_de(l, titulos) or "?") for l in letras_con_comando()]
+    deslizar("   ".join(partes))
+
+
 # lo que tiene a mano el codigo de cada letra
 AYUDANTES = {
     "mostrar": mostrar,            # mostrar("Hola", "mundo"): hasta 3 renglones
@@ -351,6 +417,8 @@ AYUDANTES = {
     "led": prender_led,            # led(True) / led(False)
     "imagen": imagen,              # imagen(): muestra IMAGEN_X 3 segundos
     "escritura_libre": empezar_escritura_libre,
+    "deslizar": deslizar,          # deslizar("Hola!"): cartel que cruza la pantalla
+    "ayuda": ayuda,                # ayuda(): lista de letras con su titulo
     "oled": oled,
     "Pin": Pin,
     "time": time,
@@ -797,6 +865,7 @@ def atender_http(conn, addr):
         elif ruta == "/letras" and metodo == "GET":
             inverso = {v: k for k, v in MORSE.items()}
             bloqueadas = leer_bloqueadas()
+            titulos = leer_titulos()
             letras = {}
             for n in range(26):
                 l = chr(65 + n)
@@ -806,6 +875,7 @@ def atender_http(conn, addr):
                     "bloqueada": l in bloqueadas,
                     "codigo": "" if l in FIJAS else leer_codigo(l),
                     "inicial": CODIGO_INICIAL.get(l, ""),
+                    "titulo": titulo_de(l, titulos),
                 }
             responder(conn, "200 OK", {"letras": letras, "error": ultimo_error})
         elif ruta == "/letra" and metodo == "POST":
@@ -821,6 +891,15 @@ def atender_http(conn, addr):
                 guardar_codigo(letra, cuerpo.decode())
                 print("Codigo guardado para la letra", letra)
                 responder(conn, "200 OK", {"ok": True, "codigo": leer_codigo(letra)})
+        elif ruta == "/titulo" and metodo == "POST":
+            letra = params.get("l", "").upper()
+            if len(letra) != 1 or not "A" <= letra <= "Z" or letra in FIJAS:
+                responder(conn, "400 Bad Request", {"error": "letra invalida"})
+            elif letra in leer_bloqueadas():
+                responder(conn, "403 Forbidden",
+                          {"error": letra + " esta bloqueada: destilda el candado para editarla"})
+            else:
+                responder(conn, "200 OK", {"ok": True, "titulo": guardar_titulo(letra, params.get("t", ""))})
         elif ruta == "/bloquear" and metodo == "POST":
             letra = params.get("l", "").upper()
             if len(letra) != 1 or not "A" <= letra <= "Z" or letra in FIJAS:
