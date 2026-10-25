@@ -7,10 +7,12 @@
 #   mantener apretado 2 s = dormir
 # Plaquita de 2 botones (opcional): SW1 es otra llave de morse (igual que el
 # boton), SW2 vuelve al inicio, y su LED se prende mientras tocamos.
-# Una palabra de UNA sola letra que este en COMANDOS ejecuta ese comando
-# (B = Bluetooth, W = WiFi, X = imagen, M = escritura libre). Cualquier otra
-# cosa queda como texto. En escritura libre no hay comandos; mas de 6 puntos
-# seguidos sale.
+# Una palabra de UNA sola letra es un comando: W (WiFi) y B (Bluetooth) son
+# fijos; el resto de la A a la Z corre el codigo Python guardado para esa
+# letra en /letras/<L>.py, que se edita desde el panel web (X = imagen y
+# M = escritura libre vienen de fabrica). Una letra sin codigo queda como
+# texto. En escritura libre no hay comandos; mas de 6 puntos seguidos sale.
+# Mientras tocamos la llave suena un bip en el parlantito (cfg.PIN_PARLANTE).
 # 3 min sin uso apaga la pantalla (el WiFi sigue); 10 min duerme del todo.
 #
 # Con el WiFi prendido escucha frames de la PC por TCP (cfg.ESP_FRAME_PORT):
@@ -24,18 +26,22 @@
 #   GET  /                       -> sirve index.html (si lo subimos a la placa)
 #   GET  /estado                 -> JSON con wifi, bluetooth y texto
 #   POST /frame?clave=...        -> cuerpo de 512 bytes, se dibuja
-#   POST /comando?clave=...&letra=B  -> ejecuta un comando de COMANDOS
+#   POST /comando?clave=...&letra=B  -> ejecuta el comando de esa letra
+#   GET  /letras?clave=...       -> codigo de cada letra A-Z
+#   POST /letra?clave=...&l=A    -> guarda el codigo de la letra (cuerpo = Python)
+#   POST /probar?clave=...       -> corre el Python del cuerpo sin guardarlo
 #   POST /reset?clave=...        -> reinicia la placa
 
 import network
 import usocket as socket
 import time
+import os
 import json
 import select
 import machine
 import framebuf
 import bluetooth
-from machine import Pin, I2C
+from machine import Pin, I2C, PWM
 import ssd1306
 import config as cfg
 import imagenes
@@ -51,6 +57,15 @@ PIN_LLAVE2 = getattr(cfg, "PIN_LLAVE2", 26)     # D10, SW1: llave de morse
 PIN_INICIO = getattr(cfg, "PIN_INICIO", 14)     # D8, SW2: volver al inicio
 PIN_MASA_PLAQUITA = getattr(cfg, "PIN_MASA_PLAQUITA", 27)  # D9
 PIN_LED = getattr(cfg, "PIN_LED", 13)           # D5
+PIN_PARLANTE = getattr(cfg, "PIN_PARLANTE", 25)  # D11, con resistencia en serie
+TONO_MORSE = getattr(cfg, "TONO_MORSE", 700)     # Hz del bip mientras tocamos
+VOLUMEN = getattr(cfg, "VOLUMEN", 50)            # 1 a 50 (% del ciclo)
+CARPETA_LETRAS = "letras"
+FIJAS = ("W", "B")  # no se editan: sin la W no hay forma de arreglar nada por WiFi
+CODIGO_INICIAL = {
+    "X": "imagen()\n",
+    "M": "escritura_libre()\n",
+}
 MIN_PUNTOS_SALIR = 7  # mas de 6 puntos seguidos sale de la escritura libre
 LETRAS_VISIBLES = 10  # letra de 12 px: entran 10 en un renglon
 
@@ -62,6 +77,7 @@ if PIN_MASA_PLAQUITA is not None:
 led = Pin(PIN_LED, Pin.OUT, value=0) if PIN_LED is not None else None
 llaves = [button] + ([Pin(PIN_LLAVE2, Pin.IN, Pin.PULL_UP)] if PIN_LLAVE2 is not None else [])
 boton_inicio = Pin(PIN_INICIO, Pin.IN, Pin.PULL_UP) if PIN_INICIO is not None else None
+parlante = PWM(Pin(PIN_PARLANTE), freq=TONO_MORSE, duty_u16=0) if PIN_PARLANTE is not None else None
 wlan = network.WLAN(network.STA_IF)
 ble = bluetooth.BLE()
 
@@ -105,6 +121,8 @@ escritura_libre = False
 pantalla_on = False
 ignorar_toque = False  # el toque que prende la pantalla no cuenta como morse
 inicio_antes = 1
+sonando = False
+ultimo_error = ""
 
 
 # ---------------------------------------------------------------- pantalla
@@ -253,25 +271,148 @@ def cmd_wifi():
         mensaje("WiFi: OFF", "No conecto :(")
 
 
-def cmd_imagen():
+COMANDOS = {  # los fijos; las demas letras usan el codigo guardado
+    'B': cmd_bluetooth,
+    'W': cmd_wifi,
+}
+
+
+# ---------------------------------------------------------------- sonido
+
+def sonar(frecuencia):
+    global sonando
+    if parlante is None:
+        return
+    parlante.freq(frecuencia)
+    parlante.duty_u16(65535 * VOLUMEN // 100)
+    sonando = True
+
+
+def callar():
+    global sonando
+    if parlante is not None and sonando:
+        parlante.duty_u16(0)
+    sonando = False
+
+
+# ---------------------------------------------------------------- letras programables
+
+class Cortado(Exception):
+    pass
+
+
+def esperar(ms):
+    """Espera, pero si apretamos SW2 (inicio) corta el codigo que esta corriendo."""
+    fin = time.ticks_add(time.ticks_ms(), ms)
+    while time.ticks_diff(fin, time.ticks_ms()) > 0:
+        if boton_inicio is not None and boton_inicio.value() == 0:
+            raise Cortado()
+        time.sleep_ms(10)
+
+
+def mostrar(*lineas):
+    prender_pantalla()
+    show_lines(*[str(x) for x in lineas])
+
+
+def tono(frecuencia, ms=200):
+    sonar(frecuencia)
+    try:
+        esperar(ms)
+    finally:
+        callar()
+
+
+def prender_led(prendido=True):
+    if led:
+        led.value(1 if prendido else 0)
+
+
+def imagen(ms=3000):
+    prender_pantalla()
     oled.buffer[:] = imagenes.IMAGEN_X
     oled.show()
-    time.sleep_ms(3000)
+    esperar(ms)
 
 
-def cmd_escritura():
+def empezar_escritura_libre():
     global escritura_libre, texto
     escritura_libre = True
     texto = ""
     mensaje("Escritura libre", "7+ puntos=salir", ms=2000)
 
 
-COMANDOS = {
-    'B': cmd_bluetooth,
-    'W': cmd_wifi,
-    'X': cmd_imagen,
-    'M': cmd_escritura,
+# lo que tiene a mano el codigo de cada letra
+AYUDANTES = {
+    "mostrar": mostrar,            # mostrar("Hola", "mundo"): hasta 3 renglones
+    "tono": tono,                  # tono(440, 300): frecuencia en Hz, duracion en ms
+    "esperar": esperar,            # esperar(1000): ms; SW2 corta el codigo
+    "led": prender_led,            # led(True) / led(False)
+    "imagen": imagen,              # imagen(): muestra IMAGEN_X 3 segundos
+    "escritura_libre": empezar_escritura_libre,
+    "oled": oled,
+    "Pin": Pin,
+    "time": time,
 }
+
+
+def ruta_letra(letra):
+    return CARPETA_LETRAS + "/" + letra + ".py"
+
+
+def letras_guardadas():
+    try:
+        return [n[0] for n in os.listdir(CARPETA_LETRAS) if n.endswith(".py") and len(n) == 4]
+    except OSError:
+        return []
+
+
+def leer_codigo(letra):
+    try:
+        with open(ruta_letra(letra)) as f:
+            return f.read()
+    except OSError:
+        return CODIGO_INICIAL.get(letra, "")
+
+
+def guardar_codigo(letra, codigo):
+    """Codigo vacio = borra el archivo (la letra vuelve a lo de fabrica)."""
+    try:
+        os.mkdir(CARPETA_LETRAS)
+    except OSError:
+        pass  # ya existia
+    if codigo.strip():
+        with open(ruta_letra(letra), "w") as f:
+            f.write(codigo)
+    else:
+        try:
+            os.remove(ruta_letra(letra))
+        except OSError:
+            pass
+
+
+def letras_con_comando():
+    return sorted(set(COMANDOS) | set(CODIGO_INICIAL) | set(letras_guardadas()))
+
+
+def correr_codigo(codigo, nombre):
+    """Corre el Python de una letra. Devuelve el error como texto, o "" si anduvo."""
+    global ultimo_error, soltado_en, last_activity
+    prender_pantalla()
+    ultimo_error = ""
+    try:
+        exec(codigo, dict(AYUDANTES))
+    except Cortado:
+        mensaje("Cortado", ms=800)
+    except Exception as e:
+        ultimo_error = "%s: %s" % (type(e).__name__, e)
+        print("Error en", nombre, "->", ultimo_error)
+        mensaje("Error en " + nombre, ultimo_error[:16], ultimo_error[16:32], ms=3000)
+    finally:
+        callar()
+        prender_led(False)
+    soltado_en = last_activity = time.ticks_ms()
+    return ultimo_error
 
 
 # ---------------------------------------------------------------- morse
@@ -301,19 +442,27 @@ def cerrar_letra():
 
 
 def ejecutar_comando(letra):
+    """Corre lo que tenga asignado la letra. Devuelve False si no tiene nada."""
     global soltado_en, last_activity
-    print("Comando:", letra)
-    prender_pantalla()
-    COMANDOS[letra]()
-    soltado_en = time.ticks_ms()
-    last_activity = soltado_en
+    if letra in COMANDOS:
+        print("Comando:", letra)
+        prender_pantalla()
+        COMANDOS[letra]()
+        soltado_en = last_activity = time.ticks_ms()
+        return True
+    codigo = leer_codigo(letra)
+    if not codigo.strip():
+        return False
+    print("Codigo de la letra:", letra)
+    correr_codigo(codigo, letra)
+    return True
 
 
 def cerrar_palabra():
     global texto, palabra
     p = palabra
     palabra = ""
-    if not escritura_libre and len(p) == 1 and p in COMANDOS:
+    if not escritura_libre and len(p) == 1 and p in letras_con_comando():
         texto = texto[:-1]  # el comando no queda escrito
         ejecutar_comando(p)
     else:
@@ -327,6 +476,11 @@ def leer_boton():
     apretada = llave_apretada()
     if led:
         led.value(1 if apretada and pantalla_on else 0)
+    if apretada and pantalla_on and not ignorar_toque:
+        if not sonando:
+            sonar(TONO_MORSE)  # el bip de morse mientras tocamos
+    else:
+        callar()
     if apretada:
         if presionado_desde is None:
             presionado_desde = now
@@ -489,7 +643,7 @@ def leer_peticion(conn):
     for linea in lineas[1:]:
         k, _, v = linea.partition(":")
         if k.strip().lower() == "content-length":
-            largo = min(int(v.strip()), 4096)
+            largo = min(int(v.strip()), 8192)
     while len(cuerpo) < largo:
         chunk = conn.recv(largo - len(cuerpo))
         if not chunk:
@@ -592,7 +746,8 @@ def atender_http(conn, addr):
                 "texto": texto,
                 "escritura_libre": escritura_libre,
                 "pantalla": pantalla_on,
-                "comandos": sorted(COMANDOS.keys()),
+                "comandos": letras_con_comando(),
+                "error": ultimo_error,
             })
         elif params.get("clave") != cfg.SHARED_SECRET:
             print("HTTP: clave incorrecta desde", addr[0])
@@ -606,11 +761,38 @@ def atender_http(conn, addr):
                           {"error": "el frame tiene que ser de 512 bytes"})
         elif ruta == "/comando" and metodo == "POST":
             letra = params.get("letra", "").upper()
-            if letra in COMANDOS:
+            if letra in letras_con_comando():
                 responder(conn, "200 OK", {"ok": True, "letra": letra})
                 despues = letra
             else:
-                responder(conn, "404 Not Found", {"error": "comando desconocido"})
+                responder(conn, "404 Not Found", {"error": "esa letra no tiene comando"})
+        elif ruta == "/letras" and metodo == "GET":
+            inverso = {v: k for k, v in MORSE.items()}
+            letras = {}
+            for n in range(26):
+                l = chr(65 + n)
+                letras[l] = {
+                    "morse": inverso[l],
+                    "fija": l in FIJAS,
+                    "codigo": "" if l in FIJAS else leer_codigo(l),
+                    "inicial": CODIGO_INICIAL.get(l, ""),
+                }
+            responder(conn, "200 OK", {"letras": letras, "error": ultimo_error})
+        elif ruta == "/letra" and metodo == "POST":
+            letra = params.get("l", "").upper()
+            if len(letra) != 1 or not "A" <= letra <= "Z":
+                responder(conn, "400 Bad Request", {"error": "letra invalida"})
+            elif letra in FIJAS:
+                responder(conn, "403 Forbidden", {"error": letra + " es fija, no se edita"})
+            else:
+                guardar_codigo(letra, cuerpo.decode())
+                print("Codigo guardado para la letra", letra)
+                responder(conn, "200 OK", {"ok": True, "codigo": leer_codigo(letra)})
+        elif ruta == "/probar" and metodo == "POST":
+            print("Probando codigo desde la web")
+            error = correr_codigo(cuerpo.decode(), "prueba")
+            dibujar()
+            responder(conn, "200 OK", {"ok": not error, "error": error})
         elif ruta == "/reset" and metodo == "POST":
             responder(conn, "200 OK", {"ok": True})
             despues = "RESET"
@@ -657,6 +839,7 @@ def wake_up():
 
 def go_to_sleep():
     global state, pantalla_on
+    callar()
     if led:
         led.value(0)
     wifi_off()

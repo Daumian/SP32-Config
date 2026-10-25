@@ -54,6 +54,21 @@
   .cmd { min-width: 64px; }
   .cmd b { font-size: 16px; }
   .cmd small { display: block; color: var(--muted); font-family: ui-monospace, Consolas, monospace; }
+  .grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 6px; margin-top: 10px; }
+  .letra { padding: 6px 4px; text-align: center; line-height: 1.2; }
+  .letra b { font-size: 17px; display: block; }
+  .letra small { font-family: ui-monospace, Consolas, monospace; color: var(--muted); font-size: 12px; }
+  .letra.tiene { border-color: var(--ok); }
+  .letra.tiene b { color: var(--ok); }
+  .letra.fija { opacity: .65; }
+  .letra.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+  textarea {
+    width: 100%; font: 13px/1.45 ui-monospace, Consolas, monospace; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 7px; padding: 8px; resize: vertical; tab-size: 4;
+  }
+  h3 { font-size: 15px; margin: 14px 0 8px; }
+  pre.ayuda { font: 12.5px/1.5 ui-monospace, Consolas, monospace; background: var(--bg); border-radius: 7px; padding: 10px; overflow-x: auto; margin: 8px 0 0; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-top: 12px; }
 </style>
 </head>
 <body>
@@ -130,6 +145,41 @@
     </div>
     <p class="muted">Son los mismos comandos del morse. Ojo: apagar el WiFi corta la conexión con esta página.</p>
   </section>
+
+  <section class="card">
+    <h2>🔤 Letras</h2>
+    <p class="muted">Una letra sola en morse corre su código Python. <b>Verde</b> = tiene código · 🔒 = fija (W y B) · gris = sin código, se escribe como texto.</p>
+    <div class="row">
+      <button id="btnCargarLetras">Cargar letras</button>
+      <span id="letrasEstado" class="muted"></span>
+    </div>
+    <div id="grillaLetras" class="grilla"></div>
+    <div id="editor" hidden>
+      <h3 id="edTitulo"></h3>
+      <textarea id="edCodigo" rows="10" spellcheck="false" placeholder="mostrar(&quot;Hola!&quot;)&#10;tono(440, 300)"></textarea>
+      <div class="row">
+        <button class="primary" id="btnGuardarLetra">Guardar</button>
+        <button id="btnProbarLetra">▶ Probar</button>
+        <button id="btnBorrarLetra">Borrar</button>
+      </div>
+      <p class="muted" id="edMsg"></p>
+    </div>
+    <details>
+      <summary>Qué se puede usar en el código</summary>
+      <pre class="ayuda">mostrar("Hola", "mundo")   # texto en pantalla (hasta 3 renglones)
+tono(440, 300)             # nota en Hz durante 300 ms
+esperar(1000)              # espera 1 segundo (SW2 corta el código)
+led(True) / led(False)     # LED de la plaquita
+imagen()                   # muestra la imagen X 3 segundos
+escritura_libre()          # entra a escritura libre
+oled, Pin, time            # para cosas más avanzadas
+
+# Ejemplo, la L: prende el LED 10 segundos
+led(True)
+esperar(10000)
+led(False)</pre>
+    </details>
+  </section>
 </main>
 
 <script>
@@ -172,6 +222,7 @@ async function verificar() {
     const e = await pedir(base() + "/estado", {}, 2500);
     ponerEstado(true, "Conectado" + (e.bluetooth ? " · BT on" : "") + (e.escritura_libre ? " · escritura libre" : ""));
     $("textoPlaca").textContent = e.texto ? "Texto escrito en morse: " + e.texto : "";
+    if (!letrasCargadas && $("clave").value) cargarLetras();
   } catch {
     ponerEstado(false, "Dormido o sin WiFi");
   }
@@ -374,6 +425,85 @@ $("btnReset").addEventListener("click", async () => {
     await pedir(conClave("/reset"), { method: "POST" });
     log("Reiniciando... después hay que despertarlo y mandar W");
   } catch (e) { log("No se pudo: " + e.message); }
+});
+
+// ---------- letras programables
+let letras = {}, letraSel = null, letrasCargadas = false;
+
+async function cargarLetras() {
+  $("letrasEstado").textContent = "Cargando...";
+  try {
+    const d = await pedir(conClave("/letras"), {}, 8000);
+    letras = d.letras;
+    letrasCargadas = true;
+    $("letrasEstado").textContent = d.error ? "Último error en la placa: " + d.error : "";
+    pintarLetras();
+    if (letraSel) abrirLetra(letraSel);
+  } catch (e) {
+    $("letrasEstado").textContent = "No se pudo cargar: " + e.message;
+  }
+}
+
+function pintarLetras() {
+  const g = $("grillaLetras");
+  g.innerHTML = "";
+  for (const [l, info] of Object.entries(letras)) {
+    const b = document.createElement("button");
+    b.className = "letra" + (info.fija ? " fija" : info.codigo.trim() ? " tiene" : "") + (l === letraSel ? " sel" : "");
+    b.innerHTML = `<b>${info.fija ? "🔒" : ""}${l}</b><small>${info.morse}</small>`;
+    b.addEventListener("click", () => abrirLetra(l));
+    g.appendChild(b);
+  }
+}
+
+function abrirLetra(l) {
+  letraSel = l;
+  const info = letras[l];
+  pintarLetras();
+  $("editor").hidden = false;
+  $("edTitulo").textContent = `Letra ${l}  (${info.morse})`;
+  $("edCodigo").value = info.fija ? "# " + l + " es fija: no se edita desde acá" : info.codigo;
+  for (const id of ["edCodigo", "btnGuardarLetra", "btnBorrarLetra"]) $(id).disabled = info.fija;
+  $("edMsg").textContent = info.inicial ? "Código de fábrica: " + info.inicial.trim() + " (Borrar vuelve a este)" : "";
+}
+
+$("btnCargarLetras").addEventListener("click", cargarLetras);
+
+$("btnGuardarLetra").addEventListener("click", async () => {
+  if (!letraSel) return;
+  try {
+    const d = await pedir(conClave("/letra", "&l=" + letraSel), { method: "POST", body: $("edCodigo").value });
+    letras[letraSel].codigo = d.codigo;
+    pintarLetras();
+    $("edMsg").textContent = "Guardado ✅ Ya se puede usar en morse.";
+  } catch (e) { $("edMsg").textContent = "No se pudo guardar: " + e.message; }
+});
+
+$("btnProbarLetra").addEventListener("click", async () => {
+  $("edMsg").textContent = "Corriendo en la placa... (SW2 lo corta)";
+  try {
+    const d = await pedir(conClave("/probar"), { method: "POST", body: $("edCodigo").value }, 120000);
+    $("edMsg").textContent = d.ok ? "Anduvo ✅" : "Error ❌ " + d.error;
+  } catch (e) { $("edMsg").textContent = "No se pudo probar: " + e.message; }
+});
+
+$("btnBorrarLetra").addEventListener("click", async () => {
+  if (!letraSel || !confirm("¿Borramos el código de la letra " + letraSel + "?")) return;
+  try {
+    const d = await pedir(conClave("/letra", "&l=" + letraSel), { method: "POST", body: "" });
+    letras[letraSel].codigo = d.codigo;
+    $("edCodigo").value = d.codigo;
+    pintarLetras();
+    $("edMsg").textContent = d.codigo ? "Borrado ✅ Volvió al código de fábrica." : "Borrado ✅ Ahora la letra se escribe como texto.";
+  } catch (e) { $("edMsg").textContent = "No se pudo borrar: " + e.message; }
+});
+
+// Tab en el editor mete 4 espacios en vez de saltar al botón
+$("edCodigo").addEventListener("keydown", (e) => {
+  if (e.key !== "Tab") return;
+  e.preventDefault();
+  const t = e.target, i = t.selectionStart;
+  t.setRangeText("    ", i, t.selectionEnd, "end");
 });
 
 dibujarPreview(new Uint8Array(512));
