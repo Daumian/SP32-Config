@@ -1,0 +1,59 @@
+<title>Conexión del parlantito</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: dos filas simples, de izquierda a derecha: pin de la placa -> lo del medio -> cable del parlante. Fondo blanco siempre. */
+  :root {
+    --bg: #ffffff; --fg: #1a1f1c; --muted: #66706a; --line: #d9dfdb;
+    --pin: #f2c21b; --pin-fg: #2a2205; --rojo: #d63a2f; --negro: #1a1a1a; --res: #3d7fd6;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--fg); font: 16px/1.45 system-ui, "Segoe UI", sans-serif;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 24px 40px;
+  }
+  main { max-width: 640px; margin: 0 auto; display: grid; gap: 22px; }
+  h1 { font-size: 24px; margin: 0; }
+  .fila { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .caja {
+    border: 2px solid var(--line); border-radius: 10px; padding: 10px 14px; text-align: center; min-width: 110px;
+  }
+  .caja b { display: block; font-size: 20px; }
+  .caja small { color: var(--muted); font-size: 13px; }
+  .pin { background: var(--pin); color: var(--pin-fg); border-color: var(--pin); }
+  .res { border-color: var(--res); color: var(--res); }
+  .rojo { border-color: var(--rojo); color: var(--rojo); }
+  .negro { border-color: var(--negro); }
+  .flecha { font-size: 24px; color: var(--muted); }
+  ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+  .nota { color: var(--muted); font-size: 14px; margin: 0; }
+</style>
+
+<main>
+  <h1>Conexión del parlantito 🔊</h1>
+
+  <div class="fila">
+    <div class="caja pin"><b>D11</b><small>GPIO 25</small></div>
+    <span class="flecha">→</span>
+    <div class="caja res"><b>Resistencia</b><small>la azul</small></div>
+    <span class="flecha">→</span>
+    <div class="caja rojo"><b>Cable rojo</b><small>del parlantito</small></div>
+  </div>
+
+  <div class="fila">
+    <div class="caja pin"><b>I13</b><small>GND</small></div>
+    <span class="flecha">→</span>
+    <div class="caja negro"><b>Cable negro</b><small>del parlantito</small></div>
+  </div>
+
+  <ol>
+    <li>Jumper de <b>D11</b> a una columna libre de la protoboard.</li>
+    <li>Resistencia desde esa columna a otra columna.</li>
+    <li><b>Cable rojo</b> del parlantito en esa segunda columna.</li>
+    <li><b>Cable negro</b> del parlantito a <b>I13</b>.</li>
+  </ol>
+
+  <p class="nota">Nunca el cable rojo directo a D11: siempre con la resistencia en el medio.</p>
+</main>
