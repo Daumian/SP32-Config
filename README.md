@@ -72,7 +72,8 @@ SP32-Config/
 ├── docs/
 │   └── pines.html           mapa de pines I1–I19 / D1–D19 (USB arriba)
 ├── pc/
-│   └── index.html           panel web: doble clic y listo, sin Python
+│   ├── index.html           panel web: doble clic y listo, sin Python
+│   └── probador.py          probador de conexiones por USB (ventanita en la PC)
 └── pruebas/                 scripts sueltos para probar cosas desde Thonny
     ├── 01_chequeo_driver.py
     ├── 02_hola_pantalla.py
@@ -334,6 +335,23 @@ vuelve el `main.py` normal. Antes de cada uno, Ctrl+C para frenar `main.py`.
 
 > 💡 Para hacer imágenes a mano: herramientas tipo *image2cpp* exportan bytes
 > en formato **vertical, 1 bit por pixel** (`MONO_VLSB`), 128x32.
+
+---
+
+### 🔌 Probador de conexiones (`pc/probador.py`)
+
+Para cuando un jumper "parece" conectado pero no hace contacto. Abre una
+ventanita en la PC que habla con la placa por USB y muestra en vivo si la
+placa responde y qué pines (D5, D8, D9, D10) tocan GND o están unidos entre
+sí. Si un contacto parpadea, avisa "falso contacto?".
+
+1. Cerrar Thonny (si no, el puerto queda ocupado).
+2. `pip install pyserial`
+3. `python probador.py`
+
+Para probar un cable: un jumper desde **I13 (GND)** y tocar con la otra punta
+el cable a probar; si se pone verde, hace buen contacto. No guarda nada en la
+placa: con un reset vuelve el `main.py` de siempre.
 
 ---
 
