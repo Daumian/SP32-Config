@@ -16,7 +16,7 @@ SCREEN_TIMEOUT_MS = 3 * 60 * 1000  # 3 minutos sin uso -> apaga la pantalla (opc
 IDLE_TIMEOUT_MS = 10 * 60 * 1000  # 10 minutos sin actividad -> se duerme
 
 # Plaquita de 2 botones (opcionales; None para no usarla)
-PIN_PUNTO = 26          # D10, SW1 = punto
-PIN_RAYA = 14           # D8,  SW2 = raya
+PIN_LLAVE2 = 26         # D10, SW1 = otra llave de morse
+PIN_INICIO = 14         # D8,  SW2 = volver al inicio
 PIN_MASA_PLAQUITA = 27  # D9,  el firmware lo pone en 0 V
-PIN_LED = 13            # D5,  LED que titila con el morse
+PIN_LED = 13            # D5,  LED prendido mientras tocamos

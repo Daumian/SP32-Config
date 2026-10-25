@@ -213,11 +213,11 @@ const COSAS = [
   { id: "boton", nombre: "Botón morse", conectada: true,
     pines: { I7: "señal", D6: "GND" } },
   { id: "plaquita", nombre: "Plaquita 2 botones", conectada: true,
-    pines: { D5: "LED (gris)", D8: "SW2 = raya", D9: "masa (0 V)", D10: "SW1 = punto" } },
+    pines: { D5: "LED (gris)", D8: "SW2 = inicio", D9: "masa (0 V)", D10: "SW1 = llave morse" } },
   { id: "micro", nombre: "Micrófono", conectada: false,
     pines: { D15: "señal (+)", I13: "GND (−)", D19: "3.3V por la resistencia" } },
   { id: "sonido", nombre: "Sonido / auris", conectada: false,
-    pines: { D11: "señal", I13: "GND" } },
+    pines: { D11: "señal (con resistencia)", I13: "GND" } },
 ];
 
 const PINES = [...IZQ, ...DER].map(([cod, nom, det, noUsable]) => ({ cod, nom, det, noUsable: !!noUsable }));
