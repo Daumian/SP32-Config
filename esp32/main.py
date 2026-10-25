@@ -74,6 +74,7 @@ CODIGO_INICIAL = {
     "H": "ayuda()\n",
 }
 LARGO_TITULO = 10
+LIMITE_PANEL = 2000  # codigos mas grandes no viajan por el panel: se editan con Thonny
 TITULOS_FIJOS = {"W": "WiFi", "B": "Bluetooth"}
 TITULO_INICIAL = {"X": "Imagen", "M": "Escritura", "H": "Ayuda"}
 MIN_PUNTOS_SALIR = 7  # mas de 6 puntos seguidos sale de la escritura libre
@@ -632,6 +633,13 @@ def poner_bloqueo(letra, bloquear):
         f.write("".join(sorted(letras)))
 
 
+def tamano_codigo(letra):
+    try:
+        return os.stat(ruta_letra(letra))[6]
+    except OSError:
+        return len(CODIGO_INICIAL.get(letra, ""))
+
+
 def letras_con_comando():
     return sorted(set(COMANDOS) | set(CODIGO_INICIAL) | set(letras_guardadas()))
 
@@ -1102,6 +1110,7 @@ def atender_http(conn, addr):
                     "fija": l in FIJAS,
                     "bloqueada": l in bloqueadas,
                     "tiene": l in con_comando,
+                    "grande": tamano_codigo(l) > LIMITE_PANEL,
                     "inicial": CODIGO_INICIAL.get(l, ""),
                     "titulo": titulo_de(l, titulos),
                 }
@@ -1111,7 +1120,13 @@ def atender_http(conn, addr):
             if len(letra) != 1 or not "A" <= letra <= "Z":
                 responder(conn, "400 Bad Request", {"error": "letra invalida"})
             else:
-                responder(conn, "200 OK", {"codigo": "" if letra in FIJAS else leer_codigo(letra)})
+                tamano = tamano_codigo(letra)
+                if letra in FIJAS:
+                    responder(conn, "200 OK", {"codigo": ""})
+                elif tamano > LIMITE_PANEL:
+                    responder(conn, "200 OK", {"grande": True, "tamano": tamano})
+                else:
+                    responder(conn, "200 OK", {"codigo": leer_codigo(letra)})
         elif ruta == "/letra" and metodo == "POST":
             letra = params.get("l", "").upper()
             if len(letra) != 1 or not "A" <= letra <= "Z":
@@ -1121,6 +1136,9 @@ def atender_http(conn, addr):
             elif letra in leer_bloqueadas():
                 responder(conn, "403 Forbidden",
                           {"error": letra + " esta bloqueada: destilda el candado para editarla"})
+            elif len(cuerpo) > LIMITE_PANEL:
+                responder(conn, "413 Payload Too Large",
+                          {"error": "codigo muy grande para el panel: guardalo con Thonny en letras/" + letra + ".py"})
             else:
                 guardar_codigo(letra, cuerpo.decode())
                 print("Codigo guardado para la letra", letra)

@@ -209,6 +209,13 @@ arreglar nada desde el panel. Todas las demás se programan desde el panel web,
 en la sección **🔤 Letras**: tocamos una letra, pegamos el código y
 **Guardar** (queda en la placa, en `/letras/<letra>.py`). **▶ Probar** lo
 corre sin guardarlo y **Borrar** la vuelve a lo de fábrica (o a texto).
+**Códigos grandes (más de 2000 caracteres), como el juego de la J:** el panel
+no los trae ni los manda, porque mandar varios KB por WiFi desde el celu es
+lento y se cortaba. Se guardan con **Thonny**: *Guardar como… → MicroPython
+device →* carpeta `letras` → nombre `J.py` (la letra que sea). En la grilla
+aparecen con 💻 y, desde el panel, se les puede poner título, bloquearlas o
+borrarlas, y se usan igual mandando la letra en morse.
+
 Cada letra puede tener un **título** de hasta 10 letras (sin acentos, porque
 la pantalla no los tiene), que es lo que muestra la **H**. W y B traen el suyo
 fijo, y X, M y H uno de fábrica.
@@ -244,7 +251,7 @@ armando, para copiar y pegar en el panel:
 
 | Archivo | Letra | Qué hace |
 |---|---|---|
-| `letras/J.py` | **J** (Dino) | El juego del dinosaurio de Chrome: tocar = saltar, récord guardado en la placa y la música de cuando muere Mario al perder |
+| `letras/J.py` 💻 | **J** (Dino) | El juego del dinosaurio de Chrome: tocar = saltar, récord guardado en la placa y la música de cuando muere Mario al perder |
 | `letras/D.py` | **D** (Dado) | Puntos rápidos = número entre 1 y la cantidad de puntos; raya = SI o NO. Cada toque tira de nuevo |
 | `letras/L.py` | **L** (Luz) | Prende el LED 10 segundos |
 | `letras/P.py` | **P** (Marcha) | La marcha peronista en el parlantito |
@@ -334,8 +341,8 @@ Todas menos `/estado` llevan `?clave=SHARED_SECRET`.
 | `/frame` | POST | Cuerpo de 512 bytes (`MONO_VLSB`): se dibuja |
 | `/comando?letra=B` | POST | Ejecuta el comando o el código de esa letra, igual que en morse |
 | `/letras` | GET | Lista A–Z: morse, título, si es fija, si está bloqueada y si tiene código |
-| `/codigo?l=A` | GET | El código de una letra (el panel lo pide al tocarla) |
-| `/letra?l=A` | POST | Guarda el código de la letra (cuerpo = Python; vacío = borrar) |
+| `/codigo?l=A` | GET | El código de una letra (el panel lo pide al tocarla). Si pasa de 2000 caracteres, solo avisa que es grande |
+| `/letra?l=A` | POST | Guarda el código de la letra (cuerpo = Python, hasta 2000 caracteres; vacío = borrar) |
 | `/titulo?l=A&t=Luz` | POST | Título de la letra (hasta 10 letras, lo muestra la H) |
 | `/bloquear?l=A&si=1` | POST | Bloquea (`si=1`) o desbloquea (`si=0`) la letra para no editarla sin querer |
 | `/probar` | POST | Corre el Python del cuerpo sin guardarlo y devuelve el error, si hubo |
