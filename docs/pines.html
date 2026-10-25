@@ -1,0 +1,260 @@
+<title>Mapa de pines ESP32</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+  /* Layout: placa vista con el USB arriba; columna de pines I a la izquierda, D a la derecha, tabla abajo */
+  :root {
+    --bg: #eef1ee; --fg: #17201b; --muted: #5d6b63; --line: #cfd8d2; --surface: #ffffff;
+    --pcb: #1d2a24; --pcb-fg: #d9e6df; --pad: #c9a227;
+    --uso: #1f8a4c; --uso-bg: #dff3e7;
+    --plan: #2d6fc4; --plan-bg: #e1ecfa;
+    --power: #b8432f; --power-bg: #f8e3de;
+    --evitar: #7d7f86; --evitar-bg: #e7e8ea;
+    --ojo: #a86a00; --ojo-bg: #fbedd2;
+    --font-ui: "Archivo", system-ui, sans-serif;
+    --font-code: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111613; --fg: #e3ebe6; --muted: #93a39a; --line: #2b352f; --surface: #182019;
+      --pcb: #0b110e; --pcb-fg: #c6d6cd; --pad: #d9b23a;
+      --uso: #4cc581; --uso-bg: #173826;
+      --plan: #6fa4ef; --plan-bg: #172b47;
+      --power: #ef7a64; --power-bg: #3f1d17;
+      --evitar: #8f939b; --evitar-bg: #24272b;
+      --ojo: #f0ad3c; --ojo-bg: #3a2a0d;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111613; --fg: #e3ebe6; --muted: #93a39a; --line: #2b352f; --surface: #182019;
+    --pcb: #0b110e; --pcb-fg: #c6d6cd; --pad: #d9b23a;
+    --uso: #4cc581; --uso-bg: #173826;
+    --plan: #6fa4ef; --plan-bg: #172b47;
+    --power: #ef7a64; --power-bg: #3f1d17;
+    --evitar: #8f939b; --evitar-bg: #24272b;
+    --ojo: #f0ad3c; --ojo-bg: #3a2a0d;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--fg); font: 15px/1.45 var(--font-ui);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px 40px;
+  }
+  main { max-width: 880px; margin: 0 auto; display: grid; gap: 22px; }
+  h1 { font-size: 26px; font-weight: 800; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+  h2 { font-size: 17px; margin: 0 0 10px; }
+  p { margin: 0; }
+  .lead { color: var(--muted); max-width: 62ch; }
+  code, .code { font-family: var(--font-code); }
+
+  .leyenda { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px;
+    font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  }
+  .chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .uso { color: var(--uso); background: var(--uso-bg); }
+  .plan { color: var(--plan); background: var(--plan-bg); }
+  .power { color: var(--power); background: var(--power-bg); }
+  .evitar { color: var(--evitar); background: var(--evitar-bg); }
+  .ojo { color: var(--ojo); background: var(--ojo-bg); }
+  .libre { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+
+  /* ---- placa */
+  .placa-wrap { overflow-x: auto; }
+  .placa {
+    display: grid; grid-template-columns: 1fr minmax(64px, 110px) 1fr; gap: 0;
+    min-width: 340px; max-width: 760px; margin: 0 auto;
+  }
+  .lado { display: grid; grid-auto-rows: 32px; }
+  .cuerpo {
+    background: var(--pcb); color: var(--pcb-fg); border-radius: 10px;
+    display: grid; grid-template-rows: 32px repeat(19, 32px) 40px; justify-items: center;
+    padding-block: 0; position: relative;
+  }
+  .usb {
+    grid-row: 1; align-self: start; margin-top: -10px; width: 40px; height: 22px; border-radius: 4px;
+    background: var(--evitar); color: var(--bg); font: 700 10px var(--font-code);
+    display: grid; place-items: center;
+  }
+  .chipesp {
+    grid-row: 8 / span 8; align-self: stretch; width: 70%; margin-block: 6px; border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--pcb-fg) 35%, transparent);
+    display: grid; place-items: center; font: 700 12px var(--font-code); writing-mode: vertical-rl;
+    letter-spacing: 0.15em; color: color-mix(in srgb, var(--pcb-fg) 70%, transparent);
+  }
+  .antena { grid-row: 21; font: 600 10px var(--font-code); letter-spacing: 0.1em; color: color-mix(in srgb, var(--pcb-fg) 60%, transparent); align-self: center; }
+  .pin {
+    display: grid; align-items: center; gap: 6px; font-size: 13px; min-width: 0;
+    border-radius: 6px; padding-inline: 4px;
+  }
+  .lado.izq { padding-top: 32px; }
+  .lado.der { padding-top: 32px; }
+  .lado.izq .pin { grid-template-columns: 1fr auto auto; text-align: right; }
+  .lado.der .pin { grid-template-columns: auto auto 1fr; }
+  .pin .nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pin .nom b { font-family: var(--font-code); font-weight: 700; }
+  .pin .num {
+    font: 700 13px var(--font-code); min-width: 34px; text-align: center; padding: 3px 0;
+    border-radius: 5px; font-variant-numeric: tabular-nums;
+  }
+  .pad { width: 12px; height: 12px; border-radius: 50%; background: var(--pad); box-shadow: 0 0 0 2px var(--pcb); }
+  .lado.izq .pad { margin-right: -10px; position: relative; z-index: 1; }
+  .lado.der .pad { margin-left: -10px; position: relative; z-index: 1; }
+  .pin:target, .pin.marcado { outline: 2px solid var(--fg); outline-offset: -2px; }
+  .orient { display: flex; justify-content: space-between; max-width: 760px; margin: 0 auto 6px; color: var(--muted); font-size: 12.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+
+  /* ---- tabla */
+  .tabla-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  td.code { font-weight: 700; white-space: nowrap; }
+  .buscar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .buscar input {
+    font: inherit; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--fg); width: min(280px, 100%);
+  }
+  .buscar input:focus-visible { outline: 2px solid var(--plan); outline-offset: 1px; }
+  .nota { color: var(--muted); font-size: 13px; }
+  @media (max-width: 520px) {
+    .pin { font-size: 11.5px; }
+    .pin .nom .extra { display: none; }
+  }
+</style>
+
+<main>
+  <header style="display:grid; gap:8px">
+    <h1>Mapa de pines ESP32</h1>
+    <p class="lead">La placa mirada con el <b>USB arriba</b>. Contamos los pines desde el USB, del 1 al 19:
+      <b class="code">I</b> = columna izquierda, <b class="code">D</b> = columna derecha.
+      Así decimos, por ejemplo, <span class="code">I7</span> (botón) o <span class="code">D19</span> (3.3V).</p>
+  </header>
+
+  <div class="leyenda" aria-label="Leyenda">
+    <span class="chip uso">En uso</span>
+    <span class="chip plan">Próximo</span>
+    <span class="chip power">Energía / GND</span>
+    <span class="chip ojo">Con cuidado</span>
+    <span class="chip evitar">No usar</span>
+    <span class="chip libre">Libre</span>
+  </div>
+
+  <section>
+    <div class="orient"><span>← Izquierda (I)</span><span>Derecha (D) →</span></div>
+    <div class="placa-wrap">
+      <div class="placa" id="placa">
+        <div class="lado izq" id="izq"></div>
+        <div class="cuerpo">
+          <div class="usb">USB</div>
+          <div class="chipesp">ESP-32</div>
+          <div class="antena">ANTENA</div>
+        </div>
+        <div class="lado der" id="der"></div>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:grid; gap:10px">
+    <h2>Todos los pines</h2>
+    <div class="buscar">
+      <label for="filtro" class="nota">Buscar</label>
+      <input id="filtro" type="search" placeholder="I7, GPIO21, pantalla, libre…">
+    </div>
+    <div class="tabla-wrap">
+      <table>
+        <thead><tr><th>Pin</th><th>Nombre</th><th>Estado</th><th>Para qué</th></tr></thead>
+        <tbody id="filas"></tbody>
+      </table>
+    </div>
+    <p class="nota">Los pines marcados como "solo entrada" (D14 a D17) sirven para leer (micrófono, sensores) pero no para prender cosas.
+      Los del ADC2 (D5, D7 a D11) no pueden leer voltajes con el WiFi prendido; como pines comunes andan bien.</p>
+  </section>
+</main>
+
+<script>
+// [código, nombre, estado, para qué / nota corta, nota larga]
+const IZQ = [
+  ["I1", "GPIO6", "evitar", "Flash interna"],
+  ["I2", "GPIO7", "evitar", "Flash interna"],
+  ["I3", "GPIO8", "evitar", "Flash interna"],
+  ["I4", "GPIO15", "ojo", "Pin de arranque · touch"],
+  ["I5", "GPIO2", "ojo", "LED azul de la placa · arranque"],
+  ["I6", "GPIO0", "ojo", "Botón BOOT de la placa"],
+  ["I7", "GPIO4", "uso", "Botón de morse (señal)"],
+  ["I8", "GPIO16", "libre", "Libre"],
+  ["I9", "GPIO17", "libre", "Libre"],
+  ["I10", "GPIO5", "ojo", "Pin de arranque · usable"],
+  ["I11", "GPIO18", "libre", "Libre"],
+  ["I12", "GPIO19", "libre", "Libre"],
+  ["I13", "GND", "power", "Masa"],
+  ["I14", "GPIO21", "uso", "Pantalla SDA"],
+  ["I15", "GPIO3", "evitar", "RX del USB (Thonny)"],
+  ["I16", "GPIO1", "evitar", "TX del USB (Thonny)"],
+  ["I17", "GPIO22", "uso", "Pantalla SCL"],
+  ["I18", "GPIO23", "libre", "Libre"],
+  ["I19", "GND", "uso", "Pantalla GND"],
+];
+const DER = [
+  ["D1", "VIN 5V", "power", "5V del USB"],
+  ["D2", "GPIO11", "evitar", "Flash interna"],
+  ["D3", "GPIO10", "evitar", "Flash interna"],
+  ["D4", "GPIO9", "evitar", "Flash interna"],
+  ["D5", "GPIO13", "plan", "Plaquita de 2 botones"],
+  ["D6", "GND", "uso", "Botón de morse (masa)"],
+  ["D7", "GPIO12", "ojo", "Arranque: no a 3.3V al prender"],
+  ["D8", "GPIO14", "plan", "Plaquita de 2 botones"],
+  ["D9", "GPIO27", "plan", "Plaquita de 2 botones"],
+  ["D10", "GPIO26", "plan", "Plaquita de 2 botones"],
+  ["D11", "GPIO25", "plan", "Sonido / auris (DAC)"],
+  ["D12", "GPIO33", "libre", "Libre · ADC · touch"],
+  ["D13", "GPIO32", "libre", "Libre · ADC · touch"],
+  ["D14", "GPIO35", "libre", "Solo entrada · ADC"],
+  ["D15", "GPIO34", "plan", "Micrófono (solo entrada)"],
+  ["D16", "GPIO39", "libre", "Solo entrada · ADC"],
+  ["D17", "GPIO36", "libre", "Solo entrada · ADC"],
+  ["D18", "EN", "ojo", "Reset (como el botón EN)"],
+  ["D19", "3.3V", "uso", "Pantalla VCC · 3.3V"],
+];
+const NOMBRE_ESTADO = { uso: "En uso", plan: "Próximo", power: "Energía / GND", ojo: "Con cuidado", evitar: "No usar", libre: "Libre" };
+
+function filaPlaca([cod, nom, est, para], lado) {
+  const d = document.createElement("div");
+  d.className = "pin";
+  d.id = cod;
+  d.title = `${cod} · ${nom} · ${para}`;
+  const num = `<span class="num ${est}">${cod}</span>`;
+  const txt = `<span class="nom"><b>${nom}</b><span class="extra"> · ${para}</span></span>`;
+  d.innerHTML = lado === "izq" ? `${txt}${num}<span class="pad"></span>` : `<span class="pad"></span>${num}${txt}`;
+  return d;
+}
+IZQ.forEach((p) => document.getElementById("izq").appendChild(filaPlaca(p, "izq")));
+DER.forEach((p) => document.getElementById("der").appendChild(filaPlaca(p, "der")));
+
+const filas = document.getElementById("filas");
+for (let i = 0; i < 19; i++) {
+  for (const [cod, nom, est, para] of [IZQ[i], DER[i]]) {
+    const tr = document.createElement("tr");
+    tr.dataset.buscar = `${cod} ${nom} ${NOMBRE_ESTADO[est]} ${para}`.toLowerCase();
+    tr.dataset.cod = cod;
+    tr.innerHTML = `<td class="code">${cod}</td><td class="code">${nom}</td>` +
+      `<td><span class="chip ${est}">${NOMBRE_ESTADO[est]}</span></td><td>${para}</td>`;
+    filas.appendChild(tr);
+  }
+}
+
+const filtro = document.getElementById("filtro");
+filtro.addEventListener("input", () => {
+  const q = filtro.value.trim().toLowerCase();
+  document.querySelectorAll(".pin.marcado").forEach((p) => p.classList.remove("marcado"));
+  filas.querySelectorAll("tr").forEach((tr) => {
+    const ok = !q || tr.dataset.buscar.includes(q);
+    tr.hidden = !ok;
+    if (ok && q) document.getElementById(tr.dataset.cod)?.classList.add("marcado");
+  });
+});
+</script>

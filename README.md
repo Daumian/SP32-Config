@@ -18,6 +18,11 @@ procesamiento vive en la PC.
 | **LED + resistencia** | Componentes de prueba (no se usan en este firmware) |
 | **Parlante chico** | JST, ~8 Ω / 0.5 W. Pendiente: iría a GPIO 25 con resistencia en serie |
 
+> 🗺️ Mapa de pines con nuestra numeración en `docs/pines.html`: placa con el
+> **USB arriba**, pines contados desde el USB del 1 al 19, **I** = izquierda y
+> **D** = derecha. Botón: **I7** (GPIO 4) y **D6** (GND). Pantalla: **I14**
+> (SDA), **I17** (SCL), **I19** (GND) y **D19** (3.3V).
+
 ### Cableado de la pantalla
 
 ```
@@ -64,6 +69,8 @@ SP32-Config/
 │   ├── main.py              firmware (morse + comandos + frames)
 │   ├── imagenes.py          imágenes de 512 bytes (IMAGEN_X)
 │   └── config.example.py    plantilla: copiar como config.py y completar
+├── docs/
+│   └── pines.html           mapa de pines I1–I19 / D1–D19 (USB arriba)
 ├── pc/
 │   └── index.html           panel web: doble clic y listo, sin Python
 └── pruebas/                 scripts sueltos para probar cosas desde Thonny
