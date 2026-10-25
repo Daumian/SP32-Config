@@ -220,8 +220,25 @@ def mensaje(*lines, ms=T_MENSAJE):
 
 # ---------------------------------------------------------------- wifi
 
+def sin_ahorro_wifi(interfaz):
+    """Apaga el ahorro de energia del WiFi.
+
+    Con el ahorro prendido el ESP32 "dormita" entre paquetes: lo chiquito anda,
+    pero mandar unos KB (el codigo de una letra, el panel) tarda varios segundos.
+    """
+    try:
+        interfaz.config(pm=interfaz.PM_NONE)
+    except (AttributeError, ValueError, OSError, TypeError):
+        try:
+            import esp
+            esp.sleep_type(0)  # versiones viejas de MicroPython
+        except Exception:
+            pass
+
+
 def wifi_on():
     wlan.active(True)
+    sin_ahorro_wifi(wlan)
     wlan.connect(cfg.WIFI_SSID, cfg.WIFI_PASS)
     t0 = time.ticks_ms()
     while not wlan.isconnected() and time.ticks_diff(time.ticks_ms(), t0) < 10000:
@@ -294,6 +311,7 @@ def wifi_propio_on():
         ap.config(ssid=AP_SSID, key=clave, security=seguridad)
     except (TypeError, ValueError, OSError):  # nombres viejos
         ap.config(essid=AP_SSID, password=clave, authmode=seguridad)
+    sin_ahorro_wifi(ap)
     start_frame_server()
     ip = ap.ifconfig()[0]
     print("WiFi propio:", AP_SSID, "clave:", AP_PASS, "IP:", ip)
@@ -916,20 +934,22 @@ def leer_peticion(conn):
     return metodo, ruta, params, cuerpo
 
 
-def enviar(conn, datos, ms=3000):
+def enviar(conn, datos, ms=None):
     """Manda todo, pero si el otro lado no recibe en ms milisegundos, se rinde.
 
     sendall() ignora el tiempo de espera: si el navegador deja de escuchar sin
     cerrar (por ejemplo, cambiamos de app en el celu), se quedaria esperando
     para siempre y trabaria toda la placa.
     """
+    if ms is None:
+        ms = 4000 + len(datos)  # mas datos, mas paciencia (~1 s extra por KB)
     conn.settimeout(0)  # no bloqueante: send() manda lo que entre y vuelve
     vista = memoryview(datos)
     fin = time.ticks_add(time.ticks_ms(), ms)
     i = 0
     while i < len(datos):
         try:
-            n = conn.send(vista[i:i + 512])
+            n = conn.send(vista[i:i + 1024])
             i += n or 0
         except OSError as e:
             if e.args[0] not in (11, 116, 119):  # EAGAIN, ETIMEDOUT, EINPROGRESS: lleno, reintentar
