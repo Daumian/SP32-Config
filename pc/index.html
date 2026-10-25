@@ -148,7 +148,7 @@
 
   <section class="card">
     <h2>🔤 Letras</h2>
-    <p class="muted">Una letra sola en morse corre su código Python. <b>Verde</b> = tiene código · 🔒 = fija (W y B) · gris = sin código, se escribe como texto.</p>
+    <p class="muted">Una letra sola en morse corre su código Python. <b>Verde</b> = tiene código · 🔒 = fija (W y B) · 🔐 = bloqueada para no editarla sin querer · gris = sin código, se escribe como texto.</p>
     <div class="row">
       <button id="btnCargarLetras">Cargar letras</button>
       <span id="letrasEstado" class="muted"></span>
@@ -156,6 +156,9 @@
     <div id="grillaLetras" class="grilla"></div>
     <div id="editor" hidden>
       <h3 id="edTitulo"></h3>
+      <label class="muted" style="display:flex; gap:6px; align-items:center; margin-bottom:8px">
+        <input type="checkbox" id="edBloq"> 🔐 Bloquear (para no editarla sin querer)
+      </label>
       <textarea id="edCodigo" rows="10" spellcheck="false" placeholder="mostrar(&quot;Hola!&quot;)&#10;tono(440, 300)"></textarea>
       <div class="row">
         <button class="primary" id="btnGuardarLetra">Guardar</button>
@@ -447,10 +450,11 @@ async function cargarLetras() {
 function pintarLetras() {
   const g = $("grillaLetras");
   g.innerHTML = "";
-  for (const [l, info] of Object.entries(letras)) {
+  for (const l of Object.keys(letras).sort()) {
+    const info = letras[l];
     const b = document.createElement("button");
     b.className = "letra" + (info.fija ? " fija" : info.codigo.trim() ? " tiene" : "") + (l === letraSel ? " sel" : "");
-    b.innerHTML = `<b>${info.fija ? "🔒" : ""}${l}</b><small>${info.morse}</small>`;
+    b.innerHTML = `<b>${info.fija ? "🔒" : info.bloqueada ? "🔐" : ""}${l}</b><small>${info.morse}</small>`;
     b.addEventListener("click", () => abrirLetra(l));
     g.appendChild(b);
   }
@@ -463,11 +467,27 @@ function abrirLetra(l) {
   $("editor").hidden = false;
   $("edTitulo").textContent = `Letra ${l}  (${info.morse})`;
   $("edCodigo").value = info.fija ? "# " + l + " es fija: no se edita desde acá" : info.codigo;
-  for (const id of ["edCodigo", "btnGuardarLetra", "btnBorrarLetra"]) $(id).disabled = info.fija;
+  $("edBloq").checked = !!info.bloqueada;
+  $("edBloq").disabled = info.fija;
+  for (const id of ["edCodigo", "btnGuardarLetra", "btnBorrarLetra"]) $(id).disabled = info.fija || !!info.bloqueada;
   $("edMsg").textContent = info.inicial ? "Código de fábrica: " + info.inicial.trim() + " (Borrar vuelve a este)" : "";
 }
 
 $("btnCargarLetras").addEventListener("click", cargarLetras);
+
+$("edBloq").addEventListener("change", async () => {
+  if (!letraSel) return;
+  const si = $("edBloq").checked;
+  try {
+    const d = await pedir(conClave("/bloquear", "&l=" + letraSel + "&si=" + (si ? 1 : 0)), { method: "POST" });
+    letras[letraSel].bloqueada = d.bloqueada;
+    abrirLetra(letraSel);
+    $("edMsg").textContent = d.bloqueada ? "Bloqueada 🔐 Destildá el candado para editarla." : "Desbloqueada ✏️";
+  } catch (e) {
+    $("edBloq").checked = !si;
+    $("edMsg").textContent = "No se pudo: " + e.message;
+  }
+});
 
 $("btnGuardarLetra").addEventListener("click", async () => {
   if (!letraSel) return;
