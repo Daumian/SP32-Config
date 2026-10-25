@@ -149,7 +149,7 @@
 
   <section class="card">
     <h2>🔤 Letras</h2>
-    <p class="muted">Una letra sola en morse corre su código Python. <b>Verde</b> = tiene código · 🔒 = fija (W y B) · 🔐 = bloqueada para no editarla sin querer · 💻 = código grande, se edita desde la PC · gris = sin código, se escribe como texto.</p>
+    <p class="muted">Una letra sola en morse corre su código Python. <b>Verde</b> = tiene código · 🔒 = fija (W y B) · 🔐 = bloqueada para no editarla sin querer · gris = sin código, se escribe como texto.</p>
     <div class="row">
       <button id="btnCargarLetras">Cargar letras</button>
       <span id="letrasEstado" class="muted"></span>
@@ -471,7 +471,7 @@ function pintarLetras() {
     const info = letras[l];
     const b = document.createElement("button");
     b.className = "letra" + (info.fija ? " fija" : info.tiene ? " tiene" : "") + (l === letraSel ? " sel" : "");
-    b.innerHTML = `<b>${info.fija ? "🔒" : info.bloqueada ? "🔐" : ""}${l}${info.grande ? "💻" : ""}</b><small>${info.morse}</small>` +
+    b.innerHTML = `<b>${info.fija ? "🔒" : info.bloqueada ? "🔐" : ""}${l}</b><small>${info.morse}</small>` +
       `<span class="tit">${info.titulo ? info.titulo.replace(/</g, "&lt;") : "&nbsp;"}</span>`;
     b.title = info.titulo || "";
     b.addEventListener("click", () => abrirLetra(l));
@@ -488,7 +488,7 @@ async function abrirLetra(l) {
   if (info.fija) {
     $("edCodigo").value = "# " + l + " es fija: no se edita desde acá";
   } else if (info.grande) {
-    $("edCodigo").value = "# Este código es muy grande para el celu 😜\n" +
+    $("edCodigo").value = "# Este código es muy grande para el celu.\n" +
       "# Revisalo desde la PC: Thonny, archivo letras/" + l + ".py en la placa.\n" +
       "# Desde acá podés cambiarle el título, bloquearla o borrarla,\n" +
       "# y se usa igual mandando " + l + " en morse.";
