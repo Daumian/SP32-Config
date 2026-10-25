@@ -155,6 +155,23 @@ Todo se maneja en **morse** con el botón BOOT.
 | Despierto | Pausa larga (1,2 s) | Se cierra la palabra |
 | Despierto | **Mantener 2 s** | **Duerme**: apaga WiFi, Bluetooth y pantalla |
 
+### Plaquita de 2 botones (llave doble)
+
+Una plaquita reciclada con 2 botones y un LED, conectada así (el detective
+`pruebas/07_buscar_pines.py` encontró qué era cada cable):
+
+| Cable | Pin | Qué es |
+|---|---|---|
+| gris | **D5** (GPIO 13) | LED: titila con cada punto y raya |
+| blanco 1 | **D8** (GPIO 14) | **SW2 = raya** |
+| blanco 2 | **D9** (GPIO 27) | Masa de la plaquita (el firmware lo pone en 0 V) |
+| blanco 3 | **D10** (GPIO 26) | **SW1 = punto** |
+
+Con SW1 y SW2 cada toque suma un punto o una raya al instante, sin medir
+tiempos. Las pausas cierran letras y palabras igual que con el botón de
+siempre, que sigue andando. Cualquiera de los botones despierta la placa.
+Los pines se cambian (o se apaga la plaquita con `None`) en `config.py`.
+
 ### Comandos
 
 Una palabra de **una sola letra** ejecuta un comando. Si la letra está dentro
@@ -393,6 +410,9 @@ Lo que fuimos aprendiendo (y rompiendo) en el camino:
 14. **Escritura libre y ahorro**: comando **M** (`--`) para escribir sin comandos
     (más de 6 puntos para salir), pantalla que se apaga a los 3 min y la placa
     sirviendo el panel para usarlo desde el celu.
+15. **Llave doble**: una plaquita reciclada de 2 botones (SW1 punto, SW2
+    raya) con su LED titilando, más el mapa de pines (`docs/pines.html`)
+    y el probador USB (`pc/probador.py`).
 
 ---
 

@@ -14,3 +14,9 @@ SHARED_SECRET = "cambiame123"     # tiene que ser IDENTICA a la de app.py
 BUTTON_PIN = 4                    # boton externo (0 = boton BOOT de la placa)
 SCREEN_TIMEOUT_MS = 3 * 60 * 1000  # 3 minutos sin uso -> apaga la pantalla (opcional)
 IDLE_TIMEOUT_MS = 10 * 60 * 1000  # 10 minutos sin actividad -> se duerme
+
+# Plaquita de 2 botones (opcionales; None para no usarla)
+PIN_PUNTO = 26          # D10, SW1 = punto
+PIN_RAYA = 14           # D8,  SW2 = raya
+PIN_MASA_PLAQUITA = 27  # D9,  el firmware lo pone en 0 V
+PIN_LED = 13            # D5,  LED que titila con el morse
