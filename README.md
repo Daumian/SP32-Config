@@ -81,7 +81,8 @@ SP32-Config/
     ├── 04_gif_animado.py
     ├── 05_morse.py
     ├── 06_microfono.py
-    └── 07_buscar_pines.py
+    ├── 07_buscar_pines.py
+    └── 08_parlante.py
 ```
 
 > 📌 La webapp vieja con Flask (`app.py`, `templates/index.html`,
@@ -162,14 +163,15 @@ Una plaquita reciclada con 2 botones y un LED, conectada así (el detective
 
 | Cable | Pin | Qué es |
 |---|---|---|
-| gris | **D5** (GPIO 13) | LED: titila con cada punto y raya |
-| blanco 1 | **D8** (GPIO 14) | **SW2 = raya** |
+| gris | **D5** (GPIO 13) | LED: prendido mientras tocamos morse |
+| blanco 1 | **D8** (GPIO 14) | **SW2 = volver al inicio** |
 | blanco 2 | **D9** (GPIO 27) | Masa de la plaquita (el firmware lo pone en 0 V) |
-| blanco 3 | **D10** (GPIO 26) | **SW1 = punto** |
+| blanco 3 | **D10** (GPIO 26) | **SW1 = otra llave de morse** |
 
-Con SW1 y SW2 cada toque suma un punto o una raya al instante, sin medir
-tiempos. Las pausas cierran letras y palabras igual que con el botón de
-siempre, que sigue andando. Cualquiera de los botones despierta la placa.
+**SW1** funciona igual que el botón de siempre (corto = punto, largo = raya,
+mantener 2 s = dormir). **SW2** vuelve al inicio: borra el texto, sale de la
+escritura libre y muestra "Que necesita?". Cualquiera de los botones
+despierta la placa.
 Los pines se cambian (o se apaga la plaquita con `None`) en `config.py`.
 
 ### Comandos
@@ -190,6 +192,20 @@ una **B** si el Bluetooth está prendido, y una **M** en escritura libre.
 El texto en morse se ve en **un renglón de 10 letras** de tamaño mediano
 (12 px); a medida que escribimos se va corriendo como un cartel. Para sumar comandos nuevos se agrega
 una función y una letra al diccionario `COMANDOS` en `main.py`.
+
+### 💡 Ideas de comandos (para más adelante)
+
+| Letra | Idea | Nota |
+|---|---|---|
+| **D** | Dado | Falta pensar bien cómo |
+| **P** | Tocar un sonido en el parlante | |
+| **M** | Otro sonido | ⚠️ La M ya es escritura libre: elegir otra letra |
+| **T** | Test: ejecutar código Python enviado desde el panel web | Ojo con la seguridad (solo con la clave) |
+| **L** | Prender el LED 10 segundos | |
+| **ML** | Morse con LED | Tiene 2 letras: hoy los comandos son de una sola |
+| **H** | Help: muestra en pantalla las letras y sus nombres | |
+
+Usadas hoy: **B**, **W**, **X**, **M**.
 
 - Al enchufarlo arranca **dormido**, con WiFi y Bluetooth apagados.
 - Para mandar cosas desde la PC, primero prendemos el WiFi con **W**.
@@ -349,6 +365,7 @@ vuelve el `main.py` normal. Antes de cada uno, Ctrl+C para frenar `main.py`.
 | `05_morse.py` | Lectura del botón con tiempos | Escribir en Morse con BOOT |
 | `06_microfono.py` | Micrófono electret en GPIO 34 (con resistencia a 3.3V) | Un vúmetro: la barra sube con aplausos o soplidos |
 | `07_buscar_pines.py` | Qué cable es cada cosa en una plaquita de botones | Pares de GPIO que se unen al apretar cada botón |
+| `08_parlante.py` | Parlantito en **D11** (GPIO 25) con resistencia, y **I13** (GND) | Bip, escala, SOS en morse y una melodía |
 
 > 💡 Para hacer imágenes a mano: herramientas tipo *image2cpp* exportan bytes
 > en formato **vertical, 1 bit por pixel** (`MONO_VLSB`), 128x32.
@@ -410,8 +427,9 @@ Lo que fuimos aprendiendo (y rompiendo) en el camino:
 14. **Escritura libre y ahorro**: comando **M** (`--`) para escribir sin comandos
     (más de 6 puntos para salir), pantalla que se apaga a los 3 min y la placa
     sirviendo el panel para usarlo desde el celu.
-15. **Llave doble**: una plaquita reciclada de 2 botones (SW1 punto, SW2
-    raya) con su LED titilando, más el mapa de pines (`docs/pines.html`)
+15. **Plaquita de 2 botones**: SW1 como segunda llave de morse, SW2 para
+    volver al inicio y su LED prendido mientras tocamos (probamos primero
+    punto/raya separados, pero limitaba el morse), más el mapa de pines (`docs/pines.html`)
     y el probador USB (`pc/probador.py`).
 
 ---
