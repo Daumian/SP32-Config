@@ -453,7 +453,7 @@ let letras = {}, letraSel = null, letrasCargadas = false;
 async function cargarLetras() {
   $("letrasEstado").textContent = "Cargando...";
   try {
-    const d = await pedir(conClave("/letras"), {}, 8000);
+    const d = await pedir(conClave("/letras"), {}, 10000);
     letras = d.letras;
     letrasCargadas = true;
     $("letrasEstado").textContent = d.error ? "Último error en la placa: " + d.error : "";
@@ -470,7 +470,7 @@ function pintarLetras() {
   for (const l of Object.keys(letras).sort()) {
     const info = letras[l];
     const b = document.createElement("button");
-    b.className = "letra" + (info.fija ? " fija" : info.codigo.trim() ? " tiene" : "") + (l === letraSel ? " sel" : "");
+    b.className = "letra" + (info.fija ? " fija" : info.tiene ? " tiene" : "") + (l === letraSel ? " sel" : "");
     b.innerHTML = `<b>${info.fija ? "🔒" : info.bloqueada ? "🔐" : ""}${l}</b><small>${info.morse}</small>` +
       `<span class="tit">${info.titulo ? info.titulo.replace(/</g, "&lt;") : "&nbsp;"}</span>`;
     b.title = info.titulo || "";
@@ -479,13 +479,28 @@ function pintarLetras() {
   }
 }
 
-function abrirLetra(l) {
+async function abrirLetra(l) {
   letraSel = l;
   const info = letras[l];
   pintarLetras();
   $("editor").hidden = false;
   $("edTitulo").textContent = `Letra ${l}  (${info.morse})`;
-  $("edCodigo").value = info.fija ? "# " + l + " es fija: no se edita desde acá" : info.codigo;
+  if (info.fija) {
+    $("edCodigo").value = "# " + l + " es fija: no se edita desde acá";
+  } else if (info.codigo === undefined) {
+    // el codigo se pide recien al abrir la letra, asi la lista carga rapido
+    $("edCodigo").value = "# cargando...";
+    try {
+      info.codigo = (await pedir(conClave("/codigo", "&l=" + l), {}, 10000)).codigo;
+    } catch (e) {
+      $("edCodigo").value = "# no se pudo cargar: " + e.message;
+      return;
+    }
+    if (letraSel !== l) return;  // mientras tanto tocaron otra letra
+    $("edCodigo").value = info.codigo;
+  } else {
+    $("edCodigo").value = info.codigo;
+  }
   $("edNombre").value = info.titulo || "";
   $("edBloq").checked = !!info.bloqueada;
   $("edBloq").disabled = info.fija;
@@ -514,6 +529,7 @@ $("btnGuardarLetra").addEventListener("click", async () => {
   try {
     const d = await pedir(conClave("/letra", "&l=" + letraSel), { method: "POST", body: $("edCodigo").value }, 15000);
     letras[letraSel].codigo = d.codigo;
+    letras[letraSel].tiene = !!d.codigo.trim();
     // la pantalla no tiene acentos ni ñ: los sacamos antes de mandar el titulo
     const titulo = $("edNombre").value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/gi, "n").slice(0, 10);
     const t = await pedir(conClave("/titulo", "&l=" + letraSel + "&t=" + encodeURIComponent(titulo)), { method: "POST" }, 15000);
@@ -537,6 +553,7 @@ $("btnBorrarLetra").addEventListener("click", async () => {
   try {
     const d = await pedir(conClave("/letra", "&l=" + letraSel), { method: "POST", body: "" }, 15000);
     letras[letraSel].codigo = d.codigo;
+    letras[letraSel].tiene = !!d.codigo.trim();
     $("edCodigo").value = d.codigo;
     pintarLetras();
     $("edMsg").textContent = d.codigo ? "Borrado ✅ Volvió al código de fábrica." : "Borrado ✅ Ahora la letra se escribe como texto.";

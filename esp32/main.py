@@ -30,7 +30,8 @@
 #   GET  /estado                 -> JSON con wifi, bluetooth y texto
 #   POST /frame?clave=...        -> cuerpo de 512 bytes, se dibuja
 #   POST /comando?clave=...&letra=B  -> ejecuta el comando de esa letra
-#   GET  /letras?clave=...       -> codigo de cada letra A-Z
+#   GET  /letras?clave=...       -> lista A-Z: morse, titulo y si tiene codigo
+#   GET  /codigo?clave=...&l=A   -> el codigo de una letra
 #   POST /letra?clave=...&l=A    -> guarda el codigo de la letra (cuerpo = Python)
 #   POST /bloquear?clave=...&l=A&si=1  -> bloquea (si=1) o desbloquea (si=0) la letra
 #   POST /titulo?clave=...&l=A&t=Luz   -> titulo de la letra (hasta 10 letras, lo usa la H)
@@ -909,8 +910,9 @@ def responder(conn, codigo, datos=None):
         "Content-Type: application/json\r\n"
         "Content-Length: " + str(len(cuerpo)) + "\r\n"
         "Connection: close\r\n\r\n").encode())
-    if cuerpo:
-        conn.sendall(cuerpo)
+    # de a pedacitos: mandar todo junto puede pasarse del tiempo de espera
+    for i in range(0, len(cuerpo), 1024):
+        conn.sendall(cuerpo[i:i + 1024])
 
 
 def check_http():
@@ -930,10 +932,21 @@ def check_http():
     if not http_pendientes:
         return
 
-    poller = select.poll()
-    for c in http_pendientes:
-        poller.register(c[0], select.POLLIN)
-    listos = [ev[0] for ev in poller.poll(0)]
+    try:
+        poller = select.poll()
+        for c in http_pendientes:
+            poller.register(c[0], select.POLLIN)
+        listos = [ev[0] for ev in poller.poll(0)]
+    except OSError as e:
+        # alguna conexion se rompio a mitad de camino: cerramos todas las pendientes
+        print("HTTP: conexion rota, se descarta (", e, ")")
+        for c in http_pendientes:
+            try:
+                c[0].close()
+            except Exception:
+                pass
+        http_pendientes.clear()
+        return
 
     ahora = time.ticks_ms()
     for c in http_pendientes[:]:
@@ -951,7 +964,7 @@ def check_http():
 
 def atender_http(conn, addr):
     global last_activity
-    conn.settimeout(2)
+    conn.settimeout(5)
     despues = None  # lo que se ejecuta una vez cerrada la conexion
     try:
         metodo, ruta, params, cuerpo = leer_peticion(conn)
@@ -991,6 +1004,7 @@ def atender_http(conn, addr):
             inverso = {v: k for k, v in MORSE.items()}
             bloqueadas = leer_bloqueadas()
             titulos = leer_titulos()
+            con_comando = letras_con_comando()
             letras = {}
             for n in range(26):
                 l = chr(65 + n)
@@ -998,11 +1012,17 @@ def atender_http(conn, addr):
                     "morse": inverso[l],
                     "fija": l in FIJAS,
                     "bloqueada": l in bloqueadas,
-                    "codigo": "" if l in FIJAS else leer_codigo(l),
+                    "tiene": l in con_comando,
                     "inicial": CODIGO_INICIAL.get(l, ""),
                     "titulo": titulo_de(l, titulos),
                 }
             responder(conn, "200 OK", {"letras": letras, "error": ultimo_error})
+        elif ruta == "/codigo" and metodo == "GET":
+            letra = params.get("l", "").upper()
+            if len(letra) != 1 or not "A" <= letra <= "Z":
+                responder(conn, "400 Bad Request", {"error": "letra invalida"})
+            else:
+                responder(conn, "200 OK", {"codigo": "" if letra in FIJAS else leer_codigo(letra)})
         elif ruta == "/letra" and metodo == "POST":
             letra = params.get("l", "").upper()
             if len(letra) != 1 or not "A" <= letra <= "Z":
@@ -1111,8 +1131,11 @@ def main():
             if state == STATE_AWAKE:
                 leer_boton_inicio()
                 revisar_pausas()
-                check_incoming_frame()
-                check_http()
+                try:  # un problema de red nunca tiene que tirar abajo todo
+                    check_incoming_frame()
+                    check_http()
+                except Exception as e:
+                    print("Error de red:", e)
                 quieto = time.ticks_diff(time.ticks_ms(), last_activity)
                 if quieto > cfg.IDLE_TIMEOUT_MS:
                     go_to_sleep()
