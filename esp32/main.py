@@ -125,6 +125,8 @@ srv_socket = None
 http_socket = None
 http_pendientes = []  # [conn, addr, t0]: conexiones que todavia no mandaron nada
 MAX_PENDIENTES = 6
+POLL_ERR = getattr(select, "POLLERR", 8)
+POLL_HUP = getattr(select, "POLLHUP", 16)
 T_PENDIENTE = 5000    # una conexion callada mas de esto se cierra
 
 texto = ""
@@ -616,10 +618,40 @@ def letras_con_comando():
     return sorted(set(COMANDOS) | set(CODIGO_INICIAL) | set(letras_guardadas()))
 
 
+def descartar_pedidos_viejos():
+    """Cierra los pedidos web que se apilaron mientras corria algo largo.
+
+    Mientras corre un codigo (la H, el juego, la marcha) la placa no atiende la
+    web; los navegadores se cansan y se van. Contestarles despues solo traba.
+    """
+    n = 0
+    for c in http_pendientes:
+        try:
+            c[0].close()
+        except Exception:
+            pass
+        n += 1
+    http_pendientes.clear()
+    if http_socket is not None:
+        while True:
+            try:
+                conn, _ = http_socket.accept()
+            except OSError:
+                break
+            try:
+                conn.close()
+            except Exception:
+                pass
+            n += 1
+    if n:
+        print("Descartados", n, "pedidos web viejos")
+
+
 def correr_codigo(codigo, nombre):
     """Corre el Python de una letra. Devuelve el error como texto, o "" si anduvo."""
     global ultimo_error, soltado_en, last_activity
     prender_pantalla()
+    inicio = time.ticks_ms()
     ultimo_error = ""
     try:
         exec(codigo, dict(AYUDANTES))
@@ -633,6 +665,8 @@ def correr_codigo(codigo, nombre):
         callar()
         prender_led(False)
     soltado_en = last_activity = time.ticks_ms()
+    if time.ticks_diff(soltado_en, inicio) > 2000:
+        descartar_pedidos_viejos()
     return ultimo_error
 
 
@@ -668,8 +702,11 @@ def ejecutar_comando(letra):
     if letra in COMANDOS:
         print("Comando:", letra)
         prender_pantalla()
+        inicio = time.ticks_ms()
         COMANDOS[letra]()
         soltado_en = last_activity = time.ticks_ms()
+        if time.ticks_diff(soltado_en, inicio) > 2000:
+            descartar_pedidos_viejos()
         return True
     codigo = leer_codigo(letra)
     if not codigo.strip():
@@ -957,7 +994,7 @@ def check_http():
         poller = select.poll()
         for c in http_pendientes:
             poller.register(c[0], select.POLLIN)
-        listos = [ev[0] for ev in poller.poll(0)]
+        eventos = poller.poll(0)
     except OSError as e:
         # alguna conexion se rompio a mitad de camino: cerramos todas las pendientes
         print("HTTP: conexion rota, se descarta (", e, ")")
@@ -969,10 +1006,18 @@ def check_http():
         http_pendientes.clear()
         return
 
+    cortadas = [ev[0] for ev in eventos if ev[1] & (POLL_ERR | POLL_HUP)]
+    listos = [ev[0] for ev in eventos if ev[1] & select.POLLIN]
     ahora = time.ticks_ms()
     for c in http_pendientes[:]:
         conn, addr, t0 = c
-        if conn in listos:
+        if conn in cortadas and conn not in listos:
+            http_pendientes.remove(c)  # el navegador ya corto: no hay a quien contestar
+            try:
+                conn.close()
+            except Exception:
+                pass
+        elif conn in listos:
             http_pendientes.remove(c)
             atender_http(conn, addr)
         elif time.ticks_diff(ahora, t0) > T_PENDIENTE:
@@ -987,8 +1032,11 @@ def atender_http(conn, addr):
     global last_activity
     conn.settimeout(5)
     despues = None  # lo que se ejecuta una vez cerrada la conexion
+    etiqueta, fase = "?", "recibiendo"
     try:
         metodo, ruta, params, cuerpo = leer_peticion(conn)
+        fase = "contestando"
+        etiqueta = metodo + " " + ruta
         if metodo == "OPTIONS":
             responder(conn, "204 No Content")
         elif ruta in ("/", "/index.html") and metodo == "GET":
@@ -1084,7 +1132,7 @@ def atender_http(conn, addr):
         else:
             responder(conn, "404 Not Found", {"error": "ruta desconocida"})
     except Exception as e:
-        print("Error HTTP:", e)
+        print("Error HTTP", fase, etiqueta, "->", e)
     finally:
         try:
             conn.close()
