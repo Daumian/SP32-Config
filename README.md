@@ -72,7 +72,8 @@ SP32-Config/
     ├── 03_imagen_fija.py
     ├── 04_gif_animado.py
     ├── 05_morse.py
-    └── 06_microfono.py
+    ├── 06_microfono.py
+    └── 07_buscar_pines.py
 ```
 
 > 📌 La webapp vieja con Flask (`app.py`, `templates/index.html`,
@@ -322,6 +323,7 @@ vuelve el `main.py` normal. Antes de cada uno, Ctrl+C para frenar `main.py`.
 | `04_gif_animado.py` | Animación por frames | Un GIF en loop (Ctrl+C para frenar) |
 | `05_morse.py` | Lectura del botón con tiempos | Escribir en Morse con BOOT |
 | `06_microfono.py` | Micrófono electret en GPIO 34 (con resistencia a 3.3V) | Un vúmetro: la barra sube con aplausos o soplidos |
+| `07_buscar_pines.py` | Qué cable es cada cosa en una plaquita de botones | Pares de GPIO que se unen al apretar cada botón |
 
 > 💡 Para hacer imágenes a mano: herramientas tipo *image2cpp* exportan bytes
 > en formato **vertical, 1 bit por pixel** (`MONO_VLSB`), 128x32.
