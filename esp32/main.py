@@ -129,6 +129,7 @@ ignorar_toque = False  # el toque que prende la pantalla no cuenta como morse
 inicio_antes = 1
 sonando = False
 ultimo_error = ""
+ultimo_toque_us = 0  # microsegundos del ultimo toque: suma azar a azar()
 
 
 # ---------------------------------------------------------------- pantalla
@@ -402,6 +403,65 @@ def guardar_titulo(letra, titulo):
     return titulo
 
 
+def esperar_toques(max_espera=None):
+    """Espera que toquemos la llave y devuelve lo que tocamos ("...", "-", etc).
+
+    Termina cuando hacemos una pausa de letra. Devuelve "" si pasan max_espera
+    ms sin tocar nada. Mientras tocamos suena el bip y se prende el LED.
+    SW2 corta el codigo, como en esperar().
+    """
+    global ultimo_toque_us
+    inicio = time.ticks_ms()
+    simbolos = ""
+    apretado_desde = None
+    soltado = inicio
+    while True:
+        if boton_inicio is not None and boton_inicio.value() == 0:
+            callar()
+            prender_led(False)
+            raise Cortado()
+        ahora = time.ticks_ms()
+        if llave_apretada():
+            if apretado_desde is None:
+                apretado_desde = ahora
+                sonar(TONO_MORSE)
+                prender_led(True)
+        elif apretado_desde is not None:
+            dur = time.ticks_diff(ahora, apretado_desde)
+            callar()
+            prender_led(False)
+            if dur >= T_REBOTE:
+                simbolos += "." if dur < T_PUNTO_MAX else "-"
+                ultimo_toque_us = time.ticks_us()
+            apretado_desde = None
+            soltado = ahora
+        elif simbolos and time.ticks_diff(ahora, soltado) > T_LETRA:
+            return simbolos
+        elif not simbolos and max_espera is not None and time.ticks_diff(ahora, inicio) > max_espera:
+            return ""
+        time.sleep_ms(5)
+
+
+def azar(desde, hasta):
+    """Numero al azar entre desde y hasta (incluidos).
+
+    Mezcla el generador por hardware del ESP32 (ruido de la radio) con los
+    microsegundos del ultimo toque, que nadie puede repetir igual.
+    """
+    semilla = int.from_bytes(os.urandom(4), "little") ^ ultimo_toque_us ^ time.ticks_us()
+    return desde + semilla % (hasta - desde + 1)
+
+
+def mostrar_grande(txt, escala=3):
+    """Texto gigante y centrado (escala 3 = letras de 24 px, entran 5)."""
+    prender_pantalla()
+    txt = str(txt)
+    oled.fill(0)
+    draw_scaled_text(txt, max(0, (WIDTH - len(txt) * 8 * escala) // 2),
+                     (HEIGHT - 8 * escala) // 2, escala, 1)
+    oled.show()
+
+
 def ayuda():
     """La lista de letras con algo asignado, deslizandose por la pantalla."""
     titulos = leer_titulos()
@@ -418,6 +478,9 @@ AYUDANTES = {
     "imagen": imagen,              # imagen(): muestra IMAGEN_X 3 segundos
     "escritura_libre": empezar_escritura_libre,
     "deslizar": deslizar,          # deslizar("Hola!"): cartel que cruza la pantalla
+    "mostrar_grande": mostrar_grande,  # mostrar_grande("7"): gigante y centrado
+    "esperar_toques": esperar_toques,  # esperar_toques(30000): "...", "-", o "" si no tocamos
+    "azar": azar,                  # azar(1, 6): numero al azar (hardware + tus toques)
     "ayuda": ayuda,                # ayuda(): lista de letras con su titulo
     "oled": oled,
     "Pin": Pin,

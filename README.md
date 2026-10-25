@@ -71,6 +71,7 @@ SP32-Config/
 │   └── config.example.py    plantilla: copiar como config.py y completar
 ├── docs/
 │   └── pines.html           mapa de pines I1–I19 / D1–D19 (USB arriba)
+├── letras/                  códigos de letras de respaldo (D, L, P) para pegar en el panel
 ├── pc/
 │   ├── index.html           panel web: doble clic y listo, sin Python
 │   └── probador.py          ¿la PC ve el ESP32 por USB? (ventanita en la PC)
@@ -212,8 +213,23 @@ imagen()                   # muestra la imagen X
 escritura_libre()          # entra a escritura libre
 deslizar("Hola!")          # cartel que cruza la pantalla
 ayuda()                    # lista de letras con su título
+mostrar_grande("7")        # texto gigante y centrado
+esperar_toques(30000)      # espera que toques la llave: "...", "-", o "" si no tocás
+azar(1, 6)                 # número al azar
 oled, Pin, time            # para cosas más avanzadas
 ```
+
+`azar()` mezcla el generador de números al azar por hardware del ESP32 (usa
+el ruido de la radio) con los microsegundos exactos del último toque.
+
+En la carpeta `letras/` del repo están de respaldo los códigos que fuimos
+armando, para copiar y pegar en el panel:
+
+| Archivo | Letra | Qué hace |
+|---|---|---|
+| `letras/D.py` | **D** (Dado) | Puntos rápidos = número entre 1 y la cantidad de puntos; raya = SI o NO. Cada toque tira de nuevo |
+| `letras/L.py` | **L** (Luz) | Prende el LED 10 segundos |
+| `letras/P.py` | **P** (Marcha) | La marcha peronista en el parlantito |
 
 Si el código tiene un error, la placa no se cuelga: lo muestra en pantalla y
 en el panel. Si queda trabado en un loop, **SW2** lo corta (si usa `esperar`).
@@ -226,7 +242,7 @@ Mientras tocamos la llave suena un **bip** en el parlantito, como en las radios.
 
 | Letra | Idea | Nota |
 |---|---|---|
-| **D** | Dado | Falta pensar bien cómo |
+| **D** | Dado | ✅ Hecho: `letras/D.py` |
 | **P** | Tocar un sonido en el parlante | ✅ La marcha peronista, armada desde el panel |
 | **M** | Otro sonido | ⚠️ La M ya es escritura libre: elegir otra letra |
 | **T** | Test: ejecutar código Python enviado desde el panel web | ✅ Hecho: botón **▶ Probar** del editor de letras |
