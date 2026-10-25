@@ -29,6 +29,7 @@
 #   POST /comando?clave=...&letra=B  -> ejecuta el comando de esa letra
 #   GET  /letras?clave=...       -> codigo de cada letra A-Z
 #   POST /letra?clave=...&l=A    -> guarda el codigo de la letra (cuerpo = Python)
+#   POST /bloquear?clave=...&l=A&si=1  -> bloquea (si=1) o desbloquea (si=0) la letra
 #   POST /probar?clave=...       -> corre el Python del cuerpo sin guardarlo
 #   POST /reset?clave=...        -> reinicia la placa
 
@@ -389,6 +390,33 @@ def guardar_codigo(letra, codigo):
             os.remove(ruta_letra(letra))
         except OSError:
             pass
+
+
+def ruta_bloqueadas():
+    return CARPETA_LETRAS + "/bloqueadas.txt"
+
+
+def leer_bloqueadas():
+    """Letras con bloqueo suave: no se editan hasta destildar el candado."""
+    try:
+        with open(ruta_bloqueadas()) as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def poner_bloqueo(letra, bloquear):
+    letras = set(leer_bloqueadas())
+    if bloquear:
+        letras.add(letra)
+    else:
+        letras.discard(letra)
+    try:
+        os.mkdir(CARPETA_LETRAS)
+    except OSError:
+        pass  # ya existia
+    with open(ruta_bloqueadas(), "w") as f:
+        f.write("".join(sorted(letras)))
 
 
 def letras_con_comando():
@@ -768,12 +796,14 @@ def atender_http(conn, addr):
                 responder(conn, "404 Not Found", {"error": "esa letra no tiene comando"})
         elif ruta == "/letras" and metodo == "GET":
             inverso = {v: k for k, v in MORSE.items()}
+            bloqueadas = leer_bloqueadas()
             letras = {}
             for n in range(26):
                 l = chr(65 + n)
                 letras[l] = {
                     "morse": inverso[l],
                     "fija": l in FIJAS,
+                    "bloqueada": l in bloqueadas,
                     "codigo": "" if l in FIJAS else leer_codigo(l),
                     "inicial": CODIGO_INICIAL.get(l, ""),
                 }
@@ -784,10 +814,20 @@ def atender_http(conn, addr):
                 responder(conn, "400 Bad Request", {"error": "letra invalida"})
             elif letra in FIJAS:
                 responder(conn, "403 Forbidden", {"error": letra + " es fija, no se edita"})
+            elif letra in leer_bloqueadas():
+                responder(conn, "403 Forbidden",
+                          {"error": letra + " esta bloqueada: destilda el candado para editarla"})
             else:
                 guardar_codigo(letra, cuerpo.decode())
                 print("Codigo guardado para la letra", letra)
                 responder(conn, "200 OK", {"ok": True, "codigo": leer_codigo(letra)})
+        elif ruta == "/bloquear" and metodo == "POST":
+            letra = params.get("l", "").upper()
+            if len(letra) != 1 or not "A" <= letra <= "Z" or letra in FIJAS:
+                responder(conn, "400 Bad Request", {"error": "letra invalida"})
+            else:
+                poner_bloqueo(letra, params.get("si") == "1")
+                responder(conn, "200 OK", {"ok": True, "bloqueada": letra in leer_bloqueadas()})
         elif ruta == "/probar" and metodo == "POST":
             print("Probando codigo desde la web")
             error = correr_codigo(cuerpo.decode(), "prueba")

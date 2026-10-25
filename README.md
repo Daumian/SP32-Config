@@ -191,7 +191,10 @@ una palabra (por ejemplo "BOX"), queda como texto normal.
 arreglar nada desde el panel. Todas las demás se programan desde el panel web,
 en la sección **🔤 Letras**: tocamos una letra, pegamos el código y
 **Guardar** (queda en la placa, en `/letras/<letra>.py`). **▶ Probar** lo
-corre sin guardarlo y **Borrar** la vuelve a lo de fábrica (o a texto). Una
+corre sin guardarlo y **Borrar** la vuelve a lo de fábrica (o a texto).
+El tilde **🔐 Bloquear** evita editarla sin querer: mientras está tildado no
+se puede guardar ni borrar, y se destilda cuando queramos (queda guardado en
+la placa, en `/letras/bloqueadas.txt`, así vale desde el celu y la PC). Una
 letra sin código se escribe como texto.
 
 El código tiene a mano estos ayudantes:
@@ -292,6 +295,7 @@ Todas menos `/estado` llevan `?clave=SHARED_SECRET`.
 | `/comando?letra=B` | POST | Ejecuta el comando o el código de esa letra, igual que en morse |
 | `/letras` | GET | Código de cada letra A–Z, su morse y si es fija |
 | `/letra?l=A` | POST | Guarda el código de la letra (cuerpo = Python; vacío = borrar) |
+| `/bloquear?l=A&si=1` | POST | Bloquea (`si=1`) o desbloquea (`si=0`) la letra para no editarla sin querer |
 | `/probar` | POST | Corre el Python del cuerpo sin guardarlo y devuelve el error, si hubo |
 | `/reset` | POST | Reinicia la placa |
 
