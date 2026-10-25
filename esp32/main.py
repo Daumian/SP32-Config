@@ -539,6 +539,9 @@ AYUDANTES = {
     "mostrar_grande": mostrar_grande,  # mostrar_grande("7"): gigante y centrado
     "esperar_toques": esperar_toques,  # esperar_toques(30000): "...", "-", o "" si no tocamos
     "azar": azar,                  # azar(1, 6): numero al azar (hardware + tus toques)
+    "llave": lambda: llave_apretada(),  # llave(): True mientras tocamos (no espera nada)
+    "sonar": sonar,                # sonar(440): empieza a sonar sin frenar el codigo
+    "callar": callar,              # callar(): corta el sonido
     "ayuda": ayuda,                # ayuda(): lista de letras con su titulo
     "oled": oled,
     "Pin": Pin,
