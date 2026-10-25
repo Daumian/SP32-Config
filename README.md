@@ -71,7 +71,7 @@ SP32-Config/
 │   └── config.example.py    plantilla: copiar como config.py y completar
 ├── docs/
 │   └── pines.html           mapa de pines I1–I19 / D1–D19 (USB arriba)
-├── letras/                  códigos de letras de respaldo (D, L, P) para pegar en el panel
+├── letras/                  códigos de letras de respaldo (D, J, L, P) para pegar en el panel
 ├── pc/
 │   ├── index.html           panel web: doble clic y listo, sin Python
 │   └── probador.py          ¿la PC ve el ESP32 por USB? (ventanita en la PC)
@@ -231,6 +231,8 @@ ayuda()                    # lista de letras con su título
 mostrar_grande("7")        # texto gigante y centrado
 esperar_toques(30000)      # espera que toques la llave: "...", "-", o "" si no tocás
 azar(1, 6)                 # número al azar
+llave()                    # True mientras tocás la llave (sin esperar: para juegos)
+sonar(440) / callar()      # sonido que no frena el código
 oled, Pin, time            # para cosas más avanzadas
 ```
 
@@ -242,6 +244,7 @@ armando, para copiar y pegar en el panel:
 
 | Archivo | Letra | Qué hace |
 |---|---|---|
+| `letras/J.py` | **J** (Dino) | El juego del dinosaurio de Chrome: tocar = saltar, récord guardado en la placa |
 | `letras/D.py` | **D** (Dado) | Puntos rápidos = número entre 1 y la cantidad de puntos; raya = SI o NO. Cada toque tira de nuevo |
 | `letras/L.py` | **L** (Luz) | Prende el LED 10 segundos |
 | `letras/P.py` | **P** (Marcha) | La marcha peronista en el parlantito |
