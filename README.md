@@ -212,8 +212,8 @@ corre sin guardarlo y **Borrar** la vuelve a lo de fábrica (o a texto).
 **Códigos grandes (más de 2000 caracteres), como el juego de la J:** el panel
 no los trae ni los manda, porque mandar varios KB por WiFi desde el celu es
 lento y se cortaba. Se guardan con **Thonny**: *Guardar como… → MicroPython
-device →* carpeta `letras` → nombre `J.py` (la letra que sea). En la grilla
-aparecen con 💻 y, desde el panel, se les puede poner título, bloquearlas o
+device →* carpeta `letras` → nombre `J.py` (la letra que sea). Desde el panel
+se les puede poner título, bloquearlas o
 borrarlas, y se usan igual mandando la letra en morse.
 
 Cada letra puede tener un **título** de hasta 10 letras (sin acentos, porque
@@ -251,7 +251,7 @@ armando, para copiar y pegar en el panel:
 
 | Archivo | Letra | Qué hace |
 |---|---|---|
-| `letras/J.py` 💻 | **J** (Dino) | El juego del dinosaurio de Chrome: tocar = saltar, récord guardado en la placa y la música de cuando muere Mario al perder |
+| `letras/J.py` | **J** (Dino) | El juego del dinosaurio de Chrome: tocar = saltar, récord guardado en la placa y la música de cuando muere Mario al perder |
 | `letras/D.py` | **D** (Dado) | Puntos rápidos = número entre 1 y la cantidad de puntos; raya = SI o NO. Cada toque tira de nuevo |
 | `letras/L.py` | **L** (Luz) | Prende el LED 10 segundos |
 | `letras/P.py` | **P** (Marcha) | La marcha peronista en el parlantito |
