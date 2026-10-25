@@ -244,7 +244,7 @@ armando, para copiar y pegar en el panel:
 
 | Archivo | Letra | Qué hace |
 |---|---|---|
-| `letras/J.py` | **J** (Dino) | El juego del dinosaurio de Chrome: tocar = saltar, récord guardado en la placa |
+| `letras/J.py` | **J** (Dino) | El juego del dinosaurio de Chrome: tocar = saltar, récord guardado en la placa y la música de cuando muere Mario al perder |
 | `letras/D.py` | **D** (Dado) | Puntos rápidos = número entre 1 y la cantidad de puntos; raya = SI o NO. Cada toque tira de nuevo |
 | `letras/L.py` | **L** (Luz) | Prende el LED 10 segundos |
 | `letras/P.py` | **P** (Marcha) | La marcha peronista en el parlantito |

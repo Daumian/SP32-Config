@@ -1,6 +1,7 @@
 # J: Juego del dinosaurio (como el de Chrome). Titulo: Dino.
 #   tocar la llave = saltar   |   SW2 = salir
 # Los cactus vienen cada vez mas rapido. El record queda guardado en la placa.
+# Al perder suena la musica de cuando muere Mario (Super Mario Bros, NES).
 
 import framebuf
 
@@ -9,6 +10,14 @@ FRAME_MS = 30         # ~33 cuadros por segundo
 SALTO = 3.9           # fuerza del salto (mas = salta mas alto)
 GRAVEDAD = 0.45
 ARCHIVO_RECORD = "letras/record.txt"
+
+# musica de perder de Mario: (frecuencia, duracion en ms); 0 = silencio
+MUSICA_PERDER = [
+    (523, 70), (554, 70), (587, 70), (0, 350),          # tu-tu-tu
+    (494, 210), (698, 210), (0, 210), (698, 210),       # ta ... taaa
+    (698, 280), (659, 280), (587, 280),                 # ta-ta-ta
+    (523, 210), (330, 210), (0, 210), (330, 210), (262, 420),  # ...bum bum
+]
 
 
 def sprite(filas):
@@ -80,7 +89,7 @@ def partida():
     altura, vel_y = 0.0, 0.0
     obstaculos = []           # [x, tipo]
     velocidad = 2.0
-    puntos = cuadro = sonido = 0
+    puntos = cuadro = 0
     proximo = 40
     nube_x = 100.0
     antes = llave()
@@ -91,8 +100,6 @@ def partida():
         ahora = llave()
         if ahora and not antes and altura == 0:
             vel_y = SALTO
-            sonar(900)
-            sonido = 3
         antes = ahora
         if altura > 0 or vel_y > 0:
             altura += vel_y
@@ -118,7 +125,6 @@ def partida():
             _, ancho, alto = CACTUS[o[1]]
             x = int(o[0])
             if 4 + 10 > x + 1 and 4 + 2 < x + ancho - 1 and abajo >= SUELO - alto + 1:
-                callar()
                 return puntos
 
         # dibujo
@@ -136,15 +142,11 @@ def partida():
         oled.text(marcador, 128 - 8 * len(marcador), 0)
         oled.show()
 
-        # puntaje, velocidad y sonido
+        # puntaje y velocidad
         cuadro += 1
         if cuadro % 3 == 0:
             puntos += 1
             velocidad = min(5.0, 2.0 + puntos / 120)
-        if sonido:
-            sonido -= 1
-            if not sonido:
-                callar()
         esperar(max(1, FRAME_MS - time.ticks_diff(time.ticks_ms(), t0)))
 
 
@@ -152,14 +154,18 @@ mostrar("DINO", "Toca = saltar", "SW2 = salir")
 if esperar_toque(15000):
     while True:
         puntos = partida()
-        tono(300, 120)
-        tono(180, 300)
         record = leer_record()
         if puntos > record:
             guardar_record(puntos)
             mostrar("GAME OVER", "Puntos: " + str(puntos), "NUEVO RECORD!")
         else:
             mostrar("GAME OVER", "Puntos: " + str(puntos), "Record: " + str(record))
+        for frecuencia, ms in MUSICA_PERDER:
+            if frecuencia:
+                tono(frecuencia, int(ms * 0.9))
+                esperar(int(ms * 0.1))
+            else:
+                esperar(ms)
         esperar(800)  # para no reiniciar sin querer
         if not esperar_toque(20000):
             break
