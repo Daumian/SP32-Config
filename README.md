@@ -73,7 +73,7 @@ SP32-Config/
 │   └── pines.html           mapa de pines I1–I19 / D1–D19 (USB arriba)
 ├── pc/
 │   ├── index.html           panel web: doble clic y listo, sin Python
-│   └── probador.py          probador de conexiones por USB (ventanita en la PC)
+│   └── probador.py          ¿la PC ve el ESP32 por USB? (ventanita en la PC)
 └── pruebas/                 scripts sueltos para probar cosas desde Thonny
     ├── 01_chequeo_driver.py
     ├── 02_hola_pantalla.py
@@ -338,20 +338,21 @@ vuelve el `main.py` normal. Antes de cada uno, Ctrl+C para frenar `main.py`.
 
 ---
 
-### 🔌 Probador de conexiones (`pc/probador.py`)
+### 🔌 Probador USB (`pc/probador.py`)
 
-Para cuando un jumper "parece" conectado pero no hace contacto. Abre una
-ventanita en la PC que habla con la placa por USB y muestra en vivo si la
-placa responde y qué pines (D5, D8, D9, D10) tocan GND o están unidos entre
-sí. Si un contacto parpadea, avisa "falso contacto?".
+Ventanita en la PC que se fija si la PC **ve el ESP32 por el cable USB**.
+Sirve cuando Thonny dice "Couldn't find the device" y la placa "entra y sale".
 
-1. Cerrar Thonny (si no, el puerto queda ocupado).
-2. `pip install pyserial`
-3. `python probador.py`
+- **▶ Probar**: revisa cada medio segundo. **■ Stop**: deja de revisar.
+- Anota con la hora cada vez que se conecta o se desconecta, y cuenta las
+  desconexiones. Si el número sube sin tocar nada: cable flojo o malo, o
+  puerto USB con problemas.
+- No le manda nada a la placa, así que puede estar abierto junto con Thonny.
 
-Para probar un cable: un jumper desde **I13 (GND)** y tocar con la otra punta
-el cable a probar; si se pone verde, hace buen contacto. No guarda nada en la
-placa: con un reset vuelve el `main.py` de siempre.
+```
+pip install pyserial
+python probador.py
+```
 
 ---
 
