@@ -227,6 +227,11 @@ async function pedir(url, opciones = {}, ms = 3000) {
     const datos = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(datos.error || ("HTTP " + r.status));
     return datos;
+  } catch (e) {
+    if (e.name === "AbortError") {
+      throw new Error("la placa no contestó: ¿está corriendo un código? SW2 lo corta");
+    }
+    throw e;
   } finally { clearTimeout(t); }
 }
 
@@ -507,11 +512,11 @@ $("edBloq").addEventListener("change", async () => {
 $("btnGuardarLetra").addEventListener("click", async () => {
   if (!letraSel) return;
   try {
-    const d = await pedir(conClave("/letra", "&l=" + letraSel), { method: "POST", body: $("edCodigo").value });
+    const d = await pedir(conClave("/letra", "&l=" + letraSel), { method: "POST", body: $("edCodigo").value }, 15000);
     letras[letraSel].codigo = d.codigo;
     // la pantalla no tiene acentos ni ñ: los sacamos antes de mandar el titulo
     const titulo = $("edNombre").value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/gi, "n").slice(0, 10);
-    const t = await pedir(conClave("/titulo", "&l=" + letraSel + "&t=" + encodeURIComponent(titulo)), { method: "POST" });
+    const t = await pedir(conClave("/titulo", "&l=" + letraSel + "&t=" + encodeURIComponent(titulo)), { method: "POST" }, 15000);
     letras[letraSel].titulo = t.titulo;
     $("edNombre").value = t.titulo;
     pintarLetras();
@@ -530,7 +535,7 @@ $("btnProbarLetra").addEventListener("click", async () => {
 $("btnBorrarLetra").addEventListener("click", async () => {
   if (!letraSel || !confirm("¿Borramos el código de la letra " + letraSel + "?")) return;
   try {
-    const d = await pedir(conClave("/letra", "&l=" + letraSel), { method: "POST", body: "" });
+    const d = await pedir(conClave("/letra", "&l=" + letraSel), { method: "POST", body: "" }, 15000);
     letras[letraSel].codigo = d.codigo;
     $("edCodigo").value = d.codigo;
     pintarLetras();
