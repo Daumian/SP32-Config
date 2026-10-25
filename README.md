@@ -257,7 +257,7 @@ armando, para copiar y pegar en el panel:
 | `letras/D.py` | **D** (Dado) | Puntos rápidos = número entre 1 y la cantidad de puntos; raya = SI o NO. Cada toque tira de nuevo |
 | `letras/L.py` | **L** (Luz) | Prende el LED 10 segundos |
 | `letras/R.py` | **R** (Rocky) | Un corredorcito sube la escalera y levanta los brazos con el tema de Rocky (notas de tablaturas de guitarra y armónica) |
-| `letras/S.py` | **S** (Star Wars) | La Marcha Imperial con "STAR" / "WARS" gigante |
+| `letras/S.py` | **S** (Star Wars) | Un caza TIE cruza las estrellas hacia la Estrella de la Muerte con la Marcha Imperial, y al final el rayo |
 | `letras/P.py` | **P** (Marcha) | La marcha peronista en el parlantito |
 
 Si el código tiene un error, la placa no se cuelga: lo muestra en pantalla y
