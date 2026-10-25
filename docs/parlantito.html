@@ -1,10 +1,11 @@
 <title>Conexión del parlantito</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
-  /* Layout: dos filas simples, de izquierda a derecha: pin de la placa -> lo del medio -> cable del parlante. Fondo blanco siempre. */
+  /* Layout: dibujo de la protoboard (filas 20-30, columnas f-j) como en la foto, y debajo los pasos. Fondo blanco siempre. */
   :root {
     --bg: #ffffff; --fg: #1a1f1c; --muted: #66706a; --line: #d9dfdb;
-    --pin: #f2c21b; --pin-fg: #2a2205; --rojo: #d63a2f; --negro: #1a1a1a; --res: #3d7fd6;
+    --placa: #f4f4f1; --agujero: #3a3a3a; --banda: #fff4c7;
+    --amarillo: #e0a800; --verde: #1f9d55; --rojo: #d63a2f; --negro: #1a1a1a; --res: #3d7fd6;
     color-scheme: light;
   }
   * { box-sizing: border-box; }
@@ -14,46 +15,103 @@
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     padding-block: 24px 40px;
   }
-  main { max-width: 640px; margin: 0 auto; display: grid; gap: 22px; }
+  main { max-width: 640px; margin: 0 auto; display: grid; gap: 20px; }
   h1 { font-size: 24px; margin: 0; }
-  .fila { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .caja {
-    border: 2px solid var(--line); border-radius: 10px; padding: 10px 14px; text-align: center; min-width: 110px;
-  }
-  .caja b { display: block; font-size: 20px; }
-  .caja small { color: var(--muted); font-size: 13px; }
-  .pin { background: var(--pin); color: var(--pin-fg); border-color: var(--pin); }
-  .res { border-color: var(--res); color: var(--res); }
-  .rojo { border-color: var(--rojo); color: var(--rojo); }
-  .negro { border-color: var(--negro); }
-  .flecha { font-size: 24px; color: var(--muted); }
-  ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+  svg { width: 100%; max-width: 520px; height: auto; display: block; margin: 0 auto; }
+  ol { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
   .nota { color: var(--muted); font-size: 14px; margin: 0; }
+  .c { font-weight: 700; }
+  .amarillo { color: var(--amarillo); } .verde { color: var(--verde); }
+  .rojo { color: var(--rojo); } .res { color: var(--res); }
 </style>
 
 <main>
   <h1>Conexión del parlantito 🔊</h1>
 
-  <div class="fila">
-    <div class="caja pin"><b>D11</b><small>GPIO 25</small></div>
-    <span class="flecha">→</span>
-    <div class="caja res"><b>Resistencia</b><small>la azul</small></div>
-    <span class="flecha">→</span>
-    <div class="caja rojo"><b>Cable rojo</b><small>del parlantito</small></div>
-  </div>
+  <svg viewBox="0 0 440 480" role="img" aria-label="Protoboard filas 20 a 30 con el parlantito conectado">
+    <!-- placa -->
+    <rect x="80" y="20" width="230" height="430" rx="10" fill="var(--placa)" stroke="var(--line)"/>
+    <!-- bandas de las filas que usamos -->
+    <rect x="88" y="88" width="214" height="28" rx="6" fill="var(--banda)"/>
+    <rect x="88" y="232" width="214" height="28" rx="6" fill="var(--banda)"/>
+    <rect x="88" y="340" width="214" height="28" rx="6" fill="var(--banda)"/>
+    <g id="agujeros"></g>
+    <g id="numeros" font-size="15" font-weight="700" fill="var(--fg)"></g>
+    <g id="letras" font-size="15" font-weight="700" fill="var(--muted)" text-anchor="middle"></g>
 
-  <div class="fila">
-    <div class="caja pin"><b>I13</b><small>GND</small></div>
-    <span class="flecha">→</span>
-    <div class="caja negro"><b>Cable negro</b><small>del parlantito</small></div>
-  </div>
+    <!-- jumper 1: pata D25 -> fila 22 f -->
+    <path d="M 10 102 L 110 102" stroke="var(--amarillo)" stroke-width="6" stroke-linecap="round"/>
+    <rect x="2" y="70" width="64" height="24" rx="5" fill="var(--amarillo)"/>
+    <text x="34" y="87" font-size="14" font-weight="800" text-anchor="middle" fill="#2a2205">D25</text>
+    <circle cx="110" cy="102" r="7" fill="var(--amarillo)"/>
+
+    <!-- resistencia: fila 22 h -> fila 26 h -->
+    <path d="M 190 102 L 190 246" stroke="#8a8a8a" stroke-width="3"/>
+    <rect x="178" y="146" width="24" height="56" rx="10" fill="var(--res)"/>
+    <rect x="178" y="158" width="24" height="5" fill="#7a2b1f"/>
+    <rect x="178" y="170" width="24" height="5" fill="#7a2b1f"/>
+    <rect x="178" y="182" width="24" height="5" fill="#111"/>
+    <circle cx="190" cy="102" r="7" fill="#8a8a8a"/>
+    <circle cx="190" cy="246" r="7" fill="#8a8a8a"/>
+
+    <!-- cable rojo: fila 26 j -> parlantito -->
+    <circle cx="270" cy="246" r="7" fill="var(--rojo)"/>
+    <path d="M 270 246 L 270 266 L 318 266 C 345 266, 365 280, 380 298" fill="none" stroke="var(--rojo)" stroke-width="5" stroke-linecap="round"/>
+
+    <!-- jumper 2: pata GND -> fila 29 f -->
+    <path d="M 10 354 L 110 354" stroke="var(--verde)" stroke-width="6" stroke-linecap="round"/>
+    <rect x="2" y="322" width="64" height="24" rx="5" fill="var(--verde)"/>
+    <text x="34" y="339" font-size="14" font-weight="800" text-anchor="middle" fill="#ffffff">GND</text>
+    <circle cx="110" cy="354" r="7" fill="var(--verde)"/>
+
+    <!-- cable negro: fila 29 j -> parlantito -->
+    <circle cx="270" cy="354" r="7" fill="var(--negro)"/>
+    <path d="M 270 354 L 270 374 L 318 374 C 350 374, 372 350, 388 336" fill="none" stroke="var(--negro)" stroke-width="5" stroke-linecap="round"/>
+
+    <!-- parlantito -->
+    <circle cx="395" cy="310" r="30" fill="#222"/>
+    <circle cx="395" cy="310" r="6" fill="#555"/>
+    <text x="395" y="365" font-size="13" font-weight="700" text-anchor="middle" fill="var(--fg)">parlantito</text>
+  </svg>
 
   <ol>
-    <li>Jumper de <b>D11</b> a una columna libre de la protoboard.</li>
-    <li>Resistencia desde esa columna a otra columna.</li>
-    <li><b>Cable rojo</b> del parlantito en esa segunda columna.</li>
-    <li><b>Cable negro</b> del parlantito a <b>I13</b>.</li>
+    <li><span class="c amarillo">Jumper amarillo:</span> de la pata <b>D25</b> de la placa a la <b>fila 22, agujero f</b>.</li>
+    <li><span class="c res">Resistencia azul:</span> una pata en <b>fila 22, agujero h</b> y la otra en <b>fila 26, agujero h</b>.</li>
+    <li><span class="c rojo">Cable rojo</span> del parlantito: <b>fila 26, agujero j</b>.</li>
+    <li><span class="c verde">Jumper verde:</span> de la pata <b>GND</b> (la que está entre D19 y D21) a la <b>fila 29, agujero f</b>.</li>
+    <li><b>Cable negro</b> del parlantito: <b>fila 29, agujero j</b>.</li>
   </ol>
 
-  <p class="nota">Nunca el cable rojo directo a D11: siempre con la resistencia en el medio.</p>
+  <p class="nota">Las filas resaltadas son las que usamos: los 5 agujeros de una misma fila (f a j) están conectados entre sí.
+    Los colores de los jumpers dan igual, son para guiarnos. Nunca el cable rojo directo a D25: siempre con la resistencia en el medio.</p>
 </main>
+
+<script>
+  // agujeros f-j (x) para las filas 20-30 (y), igual que en la protoboard de la foto
+  const NS = "http://www.w3.org/2000/svg";
+  const cols = ["f", "g", "h", "i", "j"];
+  const x = (c) => 110 + c * 40;
+  const y = (fila) => 30 + (fila - 20) * 36 + 0;
+  const ag = document.getElementById("agujeros");
+  const nums = document.getElementById("numeros");
+  const lets = document.getElementById("letras");
+  for (let fila = 20; fila <= 30; fila++) {
+    for (let c = 0; c < 5; c++) {
+      const r = document.createElementNS(NS, "rect");
+      r.setAttribute("x", x(c) - 6); r.setAttribute("y", y(fila) - 6);
+      r.setAttribute("width", 12); r.setAttribute("height", 12); r.setAttribute("rx", 2);
+      r.setAttribute("fill", "var(--agujero)");
+      ag.appendChild(r);
+    }
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("x", 288); t.setAttribute("y", y(fila) + 5);
+    t.textContent = fila;
+    nums.appendChild(t);
+  }
+  cols.forEach((l, c) => {
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("x", x(c)); t.setAttribute("y", 440);
+    t.textContent = l;
+    lets.appendChild(t);
+  });
+</script>
