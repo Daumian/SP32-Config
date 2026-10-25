@@ -58,6 +58,7 @@
   .letra { padding: 6px 4px; text-align: center; line-height: 1.2; }
   .letra b { font-size: 17px; display: block; }
   .letra small { font-family: ui-monospace, Consolas, monospace; color: var(--muted); font-size: 12px; }
+  .letra .tit { display: block; font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .letra.tiene { border-color: var(--ok); }
   .letra.tiene b { color: var(--ok); }
   .letra.fija { opacity: .65; }
@@ -159,6 +160,10 @@
       <label class="muted" style="display:flex; gap:6px; align-items:center; margin-bottom:8px">
         <input type="checkbox" id="edBloq"> 🔐 Bloquear (para no editarla sin querer)
       </label>
+      <label class="muted" for="edNombre" style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
+        Título <input type="text" id="edNombre" maxlength="10" size="12" placeholder="hasta 10 letras">
+        <span>(lo muestra la H)</span>
+      </label>
       <textarea id="edCodigo" rows="10" spellcheck="false" placeholder="mostrar(&quot;Hola!&quot;)&#10;tono(440, 300)"></textarea>
       <div class="row">
         <button class="primary" id="btnGuardarLetra">Guardar</button>
@@ -174,6 +179,8 @@ tono(440, 300)             # nota en Hz durante 300 ms
 esperar(1000)              # espera 1 segundo (SW2 corta el código)
 led(True) / led(False)     # LED de la plaquita
 imagen()                   # muestra la imagen X 3 segundos
+deslizar("Hola!")          # cartel que cruza la pantalla
+ayuda()                    # lista de letras con su título
 escritura_libre()          # entra a escritura libre
 oled, Pin, time            # para cosas más avanzadas
 
@@ -454,7 +461,9 @@ function pintarLetras() {
     const info = letras[l];
     const b = document.createElement("button");
     b.className = "letra" + (info.fija ? " fija" : info.codigo.trim() ? " tiene" : "") + (l === letraSel ? " sel" : "");
-    b.innerHTML = `<b>${info.fija ? "🔒" : info.bloqueada ? "🔐" : ""}${l}</b><small>${info.morse}</small>`;
+    b.innerHTML = `<b>${info.fija ? "🔒" : info.bloqueada ? "🔐" : ""}${l}</b><small>${info.morse}</small>` +
+      `<span class="tit">${info.titulo ? info.titulo.replace(/</g, "&lt;") : "&nbsp;"}</span>`;
+    b.title = info.titulo || "";
     b.addEventListener("click", () => abrirLetra(l));
     g.appendChild(b);
   }
@@ -467,9 +476,10 @@ function abrirLetra(l) {
   $("editor").hidden = false;
   $("edTitulo").textContent = `Letra ${l}  (${info.morse})`;
   $("edCodigo").value = info.fija ? "# " + l + " es fija: no se edita desde acá" : info.codigo;
+  $("edNombre").value = info.titulo || "";
   $("edBloq").checked = !!info.bloqueada;
   $("edBloq").disabled = info.fija;
-  for (const id of ["edCodigo", "btnGuardarLetra", "btnBorrarLetra"]) $(id).disabled = info.fija || !!info.bloqueada;
+  for (const id of ["edCodigo", "edNombre", "btnGuardarLetra", "btnBorrarLetra"]) $(id).disabled = info.fija || !!info.bloqueada;
   $("edMsg").textContent = info.inicial ? "Código de fábrica: " + info.inicial.trim() + " (Borrar vuelve a este)" : "";
 }
 
@@ -494,6 +504,11 @@ $("btnGuardarLetra").addEventListener("click", async () => {
   try {
     const d = await pedir(conClave("/letra", "&l=" + letraSel), { method: "POST", body: $("edCodigo").value });
     letras[letraSel].codigo = d.codigo;
+    // la pantalla no tiene acentos ni ñ: los sacamos antes de mandar el titulo
+    const titulo = $("edNombre").value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/gi, "n").slice(0, 10);
+    const t = await pedir(conClave("/titulo", "&l=" + letraSel + "&t=" + encodeURIComponent(titulo)), { method: "POST" });
+    letras[letraSel].titulo = t.titulo;
+    $("edNombre").value = t.titulo;
     pintarLetras();
     $("edMsg").textContent = "Guardado ✅ Ya se puede usar en morse.";
   } catch (e) { $("edMsg").textContent = "No se pudo guardar: " + e.message; }

@@ -185,6 +185,7 @@ una palabra (por ejemplo "BOX"), queda como texto normal.
 | **B** 🔒 | `-...` | Muestra si el **Bluetooth** está ON/OFF y lo cambia |
 | **X** | `-..-` | De fábrica: `imagen()` (muestra `IMAGEN_X` 3 segundos) |
 | **M** | `--` | De fábrica: `escritura_libre()`. Sin comandos hasta **más de 6 puntos seguidos** |
+| **H** | `....` | De fábrica: `ayuda()`. La lista de letras con su título, deslizándose por la pantalla |
 | **A–Z** | | El **código Python** que le guardemos desde el panel web |
 
 **W** y **B** son fijas: sin la W no habría forma de prender el WiFi para
@@ -192,6 +193,9 @@ arreglar nada desde el panel. Todas las demás se programan desde el panel web,
 en la sección **🔤 Letras**: tocamos una letra, pegamos el código y
 **Guardar** (queda en la placa, en `/letras/<letra>.py`). **▶ Probar** lo
 corre sin guardarlo y **Borrar** la vuelve a lo de fábrica (o a texto).
+Cada letra puede tener un **título** de hasta 10 letras (sin acentos, porque
+la pantalla no los tiene), que es lo que muestra la **H**. W y B traen el suyo
+fijo, y X, M y H uno de fábrica.
 El tilde **🔐 Bloquear** evita editarla sin querer: mientras está tildado no
 se puede guardar ni borrar, y se destilda cuando queramos (queda guardado en
 la placa, en `/letras/bloqueadas.txt`, así vale desde el celu y la PC). Una
@@ -206,6 +210,8 @@ esperar(1000)              # espera en ms; SW2 corta el código
 led(True) / led(False)     # LED de la plaquita
 imagen()                   # muestra la imagen X
 escritura_libre()          # entra a escritura libre
+deslizar("Hola!")          # cartel que cruza la pantalla
+ayuda()                    # lista de letras con su título
 oled, Pin, time            # para cosas más avanzadas
 ```
 
@@ -221,12 +227,12 @@ Mientras tocamos la llave suena un **bip** en el parlantito, como en las radios.
 | Letra | Idea | Nota |
 |---|---|---|
 | **D** | Dado | Falta pensar bien cómo |
-| **P** | Tocar un sonido en el parlante | |
+| **P** | Tocar un sonido en el parlante | ✅ La marcha peronista, armada desde el panel |
 | **M** | Otro sonido | ⚠️ La M ya es escritura libre: elegir otra letra |
 | **T** | Test: ejecutar código Python enviado desde el panel web | ✅ Hecho: botón **▶ Probar** del editor de letras |
 | **L** | Prender el LED 10 segundos | |
 | **ML** | Morse con LED | Tiene 2 letras: hoy los comandos son de una sola |
-| **H** | Help: muestra en pantalla las letras y sus nombres | |
+| **H** | Help: muestra en pantalla las letras y sus nombres | ✅ Hecho: títulos en el panel y `ayuda()` en la H |
 
 Usadas hoy: **B** y **W** (fijas), **X** y **M** (de fábrica, editables).
 Las que no son fijas ya se pueden armar desde el panel, en **🔤 Letras**.
@@ -295,6 +301,7 @@ Todas menos `/estado` llevan `?clave=SHARED_SECRET`.
 | `/comando?letra=B` | POST | Ejecuta el comando o el código de esa letra, igual que en morse |
 | `/letras` | GET | Código de cada letra A–Z, su morse y si es fija |
 | `/letra?l=A` | POST | Guarda el código de la letra (cuerpo = Python; vacío = borrar) |
+| `/titulo?l=A&t=Luz` | POST | Título de la letra (hasta 10 letras, lo muestra la H) |
 | `/bloquear?l=A&si=1` | POST | Bloquea (`si=1`) o desbloquea (`si=0`) la letra para no editarla sin querer |
 | `/probar` | POST | Corre el Python del cuerpo sin guardarlo y devuelve el error, si hubo |
 | `/reset` | POST | Reinicia la placa |
