@@ -182,12 +182,27 @@ una palabra (por ejemplo "BOX"), queda como texto normal.
 
 | Letra | Morse | Qué hace |
 |---|---|---|
-| **W** 🔒 | `.--` | Muestra si el **WiFi** está ON/OFF y lo cambia (al prender muestra la IP) |
+| **W** 🔒 | `.--` | Prende el **WiFi de casa**, o el **WiFi propio** si mantenemos la llave (ver abajo). Si ya está prendido, lo apaga |
 | **B** 🔒 | `-...` | Muestra si el **Bluetooth** está ON/OFF y lo cambia |
 | **X** | `-..-` | De fábrica: `imagen()` (muestra `IMAGEN_X` 3 segundos) |
 | **M** | `--` | De fábrica: `escritura_libre()`. Sin comandos hasta **más de 6 puntos seguidos** |
 | **H** | `....` | De fábrica: `ayuda()`. La lista de letras con su título, deslizándose por la pantalla |
 | **A–Z** | | El **código Python** que le guardemos desde el panel web |
+
+### 📶 WiFi de casa o WiFi propio
+
+Al mandar **W**, la pantalla dice "WiFi casa... / Mantene la llave = WiFi
+propio" durante 2,5 segundos:
+
+- **Sin tocar nada** 👉 se conecta al WiFi de casa (`WIFI_SSID`) y muestra la IP.
+- **Manteniendo la llave apretada** 👉 la placa **crea su propia red**: aparece
+  en el celu como **Morse-ESP32**, con clave **morse1234** (se cambian en
+  `config.py` con `AP_SSID` y `AP_PASS`; la clave necesita 8 caracteres o más).
+  El panel queda en **`http://192.168.4.1`**. Anda en cualquier lado, sin router;
+  mientras el celu está conectado a esa red no tiene internet por WiFi.
+- Si elegimos casa pero **no la encuentra**, crea el WiFi propio sola.
+
+Abajo a la derecha de la pantalla: **W** = WiFi de casa, **A** = WiFi propio.
 
 **W** y **B** son fijas: sin la W no habría forma de prender el WiFi para
 arreglar nada desde el panel. Todas las demás se programan desde el panel web,
@@ -341,6 +356,7 @@ Se arma copiando `esp32/config.example.py` como `config.py`.
 | `ESP_FRAME_PORT` | Puerto TCP para la webapp vieja (8888) |
 | `HTTP_PORT` | Puerto del panel web (opcional, 80 por defecto) |
 | `SHARED_SECRET` | Clave compartida con la PC |
+| `AP_SSID` / `AP_PASS` | Nombre y clave del WiFi propio (opcional; `Morse-ESP32` / `morse1234`) |
 | `BUTTON_PIN` | 0 (botón BOOT) |
 | `SCREEN_TIMEOUT_MS` | Cuánto tarda en apagar la pantalla (opcional, 3 min) |
 | `IDLE_TIMEOUT_MS` | Cuánto tarda en dormirse del todo (10 min) |
