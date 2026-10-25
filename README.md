@@ -174,24 +174,44 @@ escritura libre y muestra "Que necesita?". Cualquiera de los botones
 despierta la placa.
 Los pines se cambian (o se apaga la plaquita con `None`) en `config.py`.
 
-### Comandos
+### Comandos y letras programables
 
-Una palabra de **una sola letra** ejecuta un comando. Si la letra está dentro
-de una palabra (por ejemplo "BOX"), queda como texto normal.
+Una palabra de **una sola letra** es un comando. Si la letra está dentro de
+una palabra (por ejemplo "BOX"), queda como texto normal.
 
-| Letra | Morse | Comando |
+| Letra | Morse | Qué hace |
 |---|---|---|
-| **B** | `-...` | Muestra si el **Bluetooth** está ON/OFF y lo cambia |
-| **W** | `.--` | Muestra si el **WiFi** está ON/OFF y lo cambia (al prender muestra la IP) |
-| **X** | `-..-` | Muestra la imagen `IMAGEN_X` (de `imagenes.py`) 3 segundos |
-| **M** | `--` | **Escritura libre**: se apagan los comandos y escribimos lo que queramos. **más de 6 puntos seguidos** (`.......`) para salir |
+| **W** 🔒 | `.--` | Muestra si el **WiFi** está ON/OFF y lo cambia (al prender muestra la IP) |
+| **B** 🔒 | `-...` | Muestra si el **Bluetooth** está ON/OFF y lo cambia |
+| **X** | `-..-` | De fábrica: `imagen()` (muestra `IMAGEN_X` 3 segundos) |
+| **M** | `--` | De fábrica: `escritura_libre()`. Sin comandos hasta **más de 6 puntos seguidos** |
+| **A–Z** | | El **código Python** que le guardemos desde el panel web |
 
-Abajo a la derecha de la pantalla aparece una **W** si el WiFi está prendido y
+**W** y **B** son fijas: sin la W no habría forma de prender el WiFi para
+arreglar nada desde el panel. Todas las demás se programan desde el panel web,
+en la sección **🔤 Letras**: tocamos una letra, pegamos el código y
+**Guardar** (queda en la placa, en `/letras/<letra>.py`). **▶ Probar** lo
+corre sin guardarlo y **Borrar** la vuelve a lo de fábrica (o a texto). Una
+letra sin código se escribe como texto.
+
+El código tiene a mano estos ayudantes:
+
+```python
+mostrar("Hola", "mundo")   # texto en pantalla (hasta 3 renglones)
+tono(440, 300)             # nota en Hz durante 300 ms (parlantito)
+esperar(1000)              # espera en ms; SW2 corta el código
+led(True) / led(False)     # LED de la plaquita
+imagen()                   # muestra la imagen X
+escritura_libre()          # entra a escritura libre
+oled, Pin, time            # para cosas más avanzadas
+```
+
+Si el código tiene un error, la placa no se cuelga: lo muestra en pantalla y
+en el panel. Si queda trabado en un loop, **SW2** lo corta (si usa `esperar`).
+
+Abajo a la derecha de la pantalla aparece una **W** si el WiFi está prendido,
 una **B** si el Bluetooth está prendido, y una **M** en escritura libre.
-
-El texto en morse se ve en **un renglón de 10 letras** de tamaño mediano
-(12 px); a medida que escribimos se va corriendo como un cartel. Para sumar comandos nuevos se agrega
-una función y una letra al diccionario `COMANDOS` en `main.py`.
+Mientras tocamos la llave suena un **bip** en el parlantito, como en las radios.
 
 ### 💡 Ideas de comandos (para más adelante)
 
@@ -200,12 +220,13 @@ una función y una letra al diccionario `COMANDOS` en `main.py`.
 | **D** | Dado | Falta pensar bien cómo |
 | **P** | Tocar un sonido en el parlante | |
 | **M** | Otro sonido | ⚠️ La M ya es escritura libre: elegir otra letra |
-| **T** | Test: ejecutar código Python enviado desde el panel web | Ojo con la seguridad (solo con la clave) |
+| **T** | Test: ejecutar código Python enviado desde el panel web | ✅ Hecho: botón **▶ Probar** del editor de letras |
 | **L** | Prender el LED 10 segundos | |
 | **ML** | Morse con LED | Tiene 2 letras: hoy los comandos son de una sola |
 | **H** | Help: muestra en pantalla las letras y sus nombres | |
 
-Usadas hoy: **B**, **W**, **X**, **M**.
+Usadas hoy: **B** y **W** (fijas), **X** y **M** (de fábrica, editables).
+Las que no son fijas ya se pueden armar desde el panel, en **🔤 Letras**.
 
 - Al enchufarlo arranca **dormido**, con WiFi y Bluetooth apagados.
 - Para mandar cosas desde la PC, primero prendemos el WiFi con **W**.
@@ -268,7 +289,10 @@ Todas menos `/estado` llevan `?clave=SHARED_SECRET`.
 | `/` | GET | El panel (`index.html` guardado en la placa) |
 | `/estado` | GET | JSON con `wifi`, `bluetooth`, `texto`, `escritura_libre`, `pantalla` y `comandos` |
 | `/frame` | POST | Cuerpo de 512 bytes (`MONO_VLSB`): se dibuja |
-| `/comando?letra=B` | POST | Ejecuta un comando, igual que en morse |
+| `/comando?letra=B` | POST | Ejecuta el comando o el código de esa letra, igual que en morse |
+| `/letras` | GET | Código de cada letra A–Z, su morse y si es fija |
+| `/letra?l=A` | POST | Guarda el código de la letra (cuerpo = Python; vacío = borrar) |
+| `/probar` | POST | Corre el Python del cuerpo sin guardarlo y devuelve el error, si hubo |
 | `/reset` | POST | Reinicia la placa |
 
 ### La webapp vieja (Flask, carpeta `visual/` en la PC)
@@ -293,6 +317,8 @@ Se arma copiando `esp32/config.example.py` como `config.py`.
 | `BUTTON_PIN` | 0 (botón BOOT) |
 | `SCREEN_TIMEOUT_MS` | Cuánto tarda en apagar la pantalla (opcional, 3 min) |
 | `IDLE_TIMEOUT_MS` | Cuánto tarda en dormirse del todo (10 min) |
+| `PIN_LLAVE2` / `PIN_INICIO` / `PIN_MASA_PLAQUITA` / `PIN_LED` | Plaquita de 2 botones (opcional, `None` para no usarla) |
+| `PIN_PARLANTE` / `TONO_MORSE` / `VOLUMEN` | Parlantito: pin (25), bip de morse en Hz (700) y volumen 1 a 50 (opcional) |
 
 ### `app.py` (PC)
 
@@ -431,6 +457,9 @@ Lo que fuimos aprendiendo (y rompiendo) en el camino:
     volver al inicio y su LED prendido mientras tocamos (probamos primero
     punto/raya separados, pero limitaba el morse), más el mapa de pines (`docs/pines.html`)
     y el probador USB (`pc/probador.py`).
+16. **Letras programables**: cada letra A–Z corre su propio código Python,
+    que se edita desde el panel (también desde el celu). W y B quedan fijas.
+    Más el bip de morse en el parlantito mientras tocamos.
 
 ---
 

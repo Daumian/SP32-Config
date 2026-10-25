@@ -20,3 +20,8 @@ PIN_LLAVE2 = 26         # D10, SW1 = otra llave de morse
 PIN_INICIO = 14         # D8,  SW2 = volver al inicio
 PIN_MASA_PLAQUITA = 27  # D9,  el firmware lo pone en 0 V
 PIN_LED = 13            # D5,  LED prendido mientras tocamos
+
+# Parlantito (opcional; None para no usarlo). Va con una resistencia en serie.
+PIN_PARLANTE = 25       # D11
+TONO_MORSE = 700        # Hz del bip mientras tocamos
+VOLUMEN = 50            # 1 a 50
