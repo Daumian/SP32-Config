@@ -2,39 +2,18 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
-  /* Layout: placa vista con el USB arriba; columna de pines I a la izquierda, D a la derecha, tabla abajo */
+  /* Layout: placa vista con el USB arriba; columna de pines I a la izquierda, D a la derecha.
+     Amarillo = libre, negro = ocupado / no se usa, verde = pines de lo que esta tildado.
+     Siempre fondo blanco (pedido explicito), sin modo oscuro. */
   :root {
-    --bg: #eef1ee; --fg: #17201b; --muted: #5d6b63; --line: #cfd8d2; --surface: #ffffff;
-    --pcb: #1d2a24; --pcb-fg: #d9e6df; --pad: #c9a227;
-    --uso: #1f8a4c; --uso-bg: #dff3e7;
-    --plan: #2d6fc4; --plan-bg: #e1ecfa;
-    --power: #b8432f; --power-bg: #f8e3de;
-    --evitar: #7d7f86; --evitar-bg: #e7e8ea;
-    --ojo: #a86a00; --ojo-bg: #fbedd2;
+    --bg: #ffffff; --fg: #17201b; --muted: #5d6b63; --line: #d6dcd8; --surface: #f6f8f6;
+    --pcb: #1d2a24; --pcb-fg: #d9e6df;
+    --libre: #f2c21b; --libre-fg: #2a2205;
+    --ocupado: #0d0f0e; --ocupado-fg: #e9ecea; --ocupado-borde: #5b625e;
+    --verde: #22b35e; --verde-fg: #04210f;
     --font-ui: "Archivo", system-ui, sans-serif;
     --font-code: "JetBrains Mono", ui-monospace, Consolas, monospace;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #111613; --fg: #e3ebe6; --muted: #93a39a; --line: #2b352f; --surface: #182019;
-      --pcb: #0b110e; --pcb-fg: #c6d6cd; --pad: #d9b23a;
-      --uso: #4cc581; --uso-bg: #173826;
-      --plan: #6fa4ef; --plan-bg: #172b47;
-      --power: #ef7a64; --power-bg: #3f1d17;
-      --evitar: #8f939b; --evitar-bg: #24272b;
-      --ojo: #f0ad3c; --ojo-bg: #3a2a0d;
-      color-scheme: dark;
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #111613; --fg: #e3ebe6; --muted: #93a39a; --line: #2b352f; --surface: #182019;
-    --pcb: #0b110e; --pcb-fg: #c6d6cd; --pad: #d9b23a;
-    --uso: #4cc581; --uso-bg: #173826;
-    --plan: #6fa4ef; --plan-bg: #172b47;
-    --power: #ef7a64; --power-bg: #3f1d17;
-    --evitar: #8f939b; --evitar-bg: #24272b;
-    --ojo: #f0ad3c; --ojo-bg: #3a2a0d;
-    color-scheme: dark;
+    color-scheme: light;
   }
   * { box-sizing: border-box; }
   body {
@@ -43,42 +22,47 @@
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     padding-block: 20px 40px;
   }
-  main { max-width: 880px; margin: 0 auto; display: grid; gap: 22px; }
+  main { max-width: 880px; margin: 0 auto; display: grid; gap: 20px; }
   h1 { font-size: 26px; font-weight: 800; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
   h2 { font-size: 17px; margin: 0 0 10px; }
   p { margin: 0; }
   .lead { color: var(--muted); max-width: 62ch; }
-  code, .code { font-family: var(--font-code); }
+  .code { font-family: var(--font-code); }
 
-  .leyenda { display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip {
-    display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px;
-    font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  /* ---- colores de estado (pad, numero y chips) */
+  .libre { --c: var(--libre); --cf: var(--libre-fg); }
+  .ocupado { --c: var(--ocupado); --cf: var(--ocupado-fg); }
+  .verde { --c: var(--verde); --cf: var(--verde-fg); }
+
+  .leyenda { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13.5px; color: var(--muted); }
+  .leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .punto { width: 13px; height: 13px; border-radius: 50%; background: var(--c); border: 1.5px solid var(--ocupado-borde); }
+  .punto.libre, .punto.verde { border-color: transparent; }
+
+  /* ---- selector de cosas conectadas */
+  .cosas { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cosa {
+    display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 9px;
+    border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 14px; user-select: none;
   }
-  .chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-  .uso { color: var(--uso); background: var(--uso-bg); }
-  .plan { color: var(--plan); background: var(--plan-bg); }
-  .power { color: var(--power); background: var(--power-bg); }
-  .evitar { color: var(--evitar); background: var(--evitar-bg); }
-  .ojo { color: var(--ojo); background: var(--ojo-bg); }
-  .libre { color: var(--muted); background: transparent; border: 1px solid var(--line); }
+  .cosa input { width: 17px; height: 17px; accent-color: var(--verde); margin: 0; }
+  .cosa:has(input:checked) { border-color: var(--verde); }
+  .cosa:has(input:focus-visible) { outline: 2px solid var(--fg); outline-offset: 2px; }
+  .cosa small { color: var(--muted); font-family: var(--font-code); font-size: 12px; }
+  .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 
   /* ---- placa */
   .placa-wrap { overflow-x: auto; }
-  .placa {
-    display: grid; grid-template-columns: 1fr minmax(64px, 110px) 1fr; gap: 0;
-    min-width: 340px; max-width: 760px; margin: 0 auto;
-  }
-  .lado { display: grid; grid-auto-rows: 32px; }
+  .orient { display: flex; justify-content: space-between; max-width: 760px; margin: 0 auto 6px; color: var(--muted); font-size: 12.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+  .placa { display: grid; grid-template-columns: 1fr minmax(64px, 110px) 1fr; min-width: 340px; max-width: 760px; margin: 0 auto; }
+  .lado { display: grid; grid-auto-rows: 32px; padding-top: 32px; }
   .cuerpo {
     background: var(--pcb); color: var(--pcb-fg); border-radius: 10px;
     display: grid; grid-template-rows: 32px repeat(19, 32px) 40px; justify-items: center;
-    padding-block: 0; position: relative;
   }
   .usb {
-    grid-row: 1; align-self: start; margin-top: -10px; width: 40px; height: 22px; border-radius: 4px;
-    background: var(--evitar); color: var(--bg); font: 700 10px var(--font-code);
-    display: grid; place-items: center;
+    grid-row: 1; align-self: center; width: 40px; height: 22px; border-radius: 4px;
+    background: #8a8f93; color: #111; font: 700 10px var(--font-code); display: grid; place-items: center;
   }
   .chipesp {
     grid-row: 8 / span 8; align-self: stretch; width: 70%; margin-block: 6px; border-radius: 6px;
@@ -87,39 +71,38 @@
     letter-spacing: 0.15em; color: color-mix(in srgb, var(--pcb-fg) 70%, transparent);
   }
   .antena { grid-row: 21; font: 600 10px var(--font-code); letter-spacing: 0.1em; color: color-mix(in srgb, var(--pcb-fg) 60%, transparent); align-self: center; }
-  .pin {
-    display: grid; align-items: center; gap: 6px; font-size: 13px; min-width: 0;
-    border-radius: 6px; padding-inline: 4px;
-  }
-  .lado.izq { padding-top: 32px; }
-  .lado.der { padding-top: 32px; }
+
+  .pin { display: grid; align-items: center; gap: 6px; font-size: 13px; min-width: 0; padding-inline: 4px; border-radius: 6px; }
   .lado.izq .pin { grid-template-columns: 1fr auto auto; text-align: right; }
   .lado.der .pin { grid-template-columns: auto auto 1fr; }
   .pin .nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pin .nom b { font-family: var(--font-code); font-weight: 700; }
+  .pin .nom .extra { color: var(--muted); }
   .pin .num {
-    font: 700 13px var(--font-code); min-width: 34px; text-align: center; padding: 3px 0;
-    border-radius: 5px; font-variant-numeric: tabular-nums;
+    font: 700 13px var(--font-code); min-width: 36px; text-align: center; padding: 3px 0; border-radius: 5px;
+    background: var(--c); color: var(--cf); font-variant-numeric: tabular-nums;
   }
-  .pad { width: 12px; height: 12px; border-radius: 50%; background: var(--pad); box-shadow: 0 0 0 2px var(--pcb); }
-  .lado.izq .pad { margin-right: -10px; position: relative; z-index: 1; }
-  .lado.der .pad { margin-left: -10px; position: relative; z-index: 1; }
-  .pin:target, .pin.marcado { outline: 2px solid var(--fg); outline-offset: -2px; }
-  .orient { display: flex; justify-content: space-between; max-width: 760px; margin: 0 auto 6px; color: var(--muted); font-size: 12.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+  .pin.ocupado .num { box-shadow: inset 0 0 0 1.5px var(--ocupado-borde); }
+  .pad { width: 14px; height: 14px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px var(--pcb); position: relative; z-index: 1; }
+  .pin.ocupado .pad { box-shadow: 0 0 0 2px var(--pcb), inset 0 0 0 1.5px var(--ocupado-borde); }
+  .lado.izq .pad { margin-right: -11px; }
+  .lado.der .pad { margin-left: -11px; }
+  .pin.marcado { outline: 2px solid var(--fg); outline-offset: -2px; }
 
   /* ---- tabla */
   .tabla-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
   table { border-collapse: collapse; width: 100%; font-size: 14px; }
-  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
   th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
   tr:last-child td { border-bottom: 0; }
   td.code { font-weight: 700; white-space: nowrap; }
+  .estado { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
   .buscar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .buscar input {
     font: inherit; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line);
     background: var(--surface); color: var(--fg); width: min(280px, 100%);
   }
-  .buscar input:focus-visible { outline: 2px solid var(--plan); outline-offset: 1px; }
+  .buscar input:focus-visible { outline: 2px solid var(--verde); outline-offset: 1px; }
   .nota { color: var(--muted); font-size: 13px; }
   @media (max-width: 520px) {
     .pin { font-size: 11.5px; }
@@ -131,23 +114,24 @@
   <header style="display:grid; gap:8px">
     <h1>Mapa de pines ESP32</h1>
     <p class="lead">La placa mirada con el <b>USB arriba</b>. Contamos los pines desde el USB, del 1 al 19:
-      <b class="code">I</b> = columna izquierda, <b class="code">D</b> = columna derecha.
-      Así decimos, por ejemplo, <span class="code">I7</span> (botón) o <span class="code">D19</span> (3.3V).</p>
+      <b class="code">I</b> = columna izquierda, <b class="code">D</b> = columna derecha.</p>
   </header>
 
   <div class="leyenda" aria-label="Leyenda">
-    <span class="chip uso">En uso</span>
-    <span class="chip plan">Próximo</span>
-    <span class="chip power">Energía / GND</span>
-    <span class="chip ojo">Con cuidado</span>
-    <span class="chip evitar">No usar</span>
-    <span class="chip libre">Libre</span>
+    <span><i class="punto libre"></i>Libre</span>
+    <span><i class="punto ocupado"></i>Ocupado o no se usa</span>
+    <span><i class="punto verde"></i>Pines de lo tildado</span>
   </div>
+
+  <section style="display:grid; gap:8px">
+    <span class="tag">Qué mostrar en verde</span>
+    <div class="cosas" id="cosas"></div>
+  </section>
 
   <section>
     <div class="orient"><span>← Izquierda (I)</span><span>Derecha (D) →</span></div>
     <div class="placa-wrap">
-      <div class="placa" id="placa">
+      <div class="placa">
         <div class="lado izq" id="izq"></div>
         <div class="cuerpo">
           <div class="usb">USB</div>
@@ -167,94 +151,160 @@
     </div>
     <div class="tabla-wrap">
       <table>
-        <thead><tr><th>Pin</th><th>Nombre</th><th>Estado</th><th>Para qué</th></tr></thead>
+        <thead><tr><th>Pin</th><th>Nombre</th><th>Estado</th><th>Detalle</th></tr></thead>
         <tbody id="filas"></tbody>
       </table>
     </div>
-    <p class="nota">Los pines marcados como "solo entrada" (D14 a D17) sirven para leer (micrófono, sensores) pero no para prender cosas.
-      Los del ADC2 (D5, D7 a D11) no pueden leer voltajes con el WiFi prendido; como pines comunes andan bien.</p>
+    <p class="nota">3.3V hay uno solo (D19) y GND libre queda uno (I13): para darle 3.3V o GND a varias cosas a la vez,
+      lo pasamos a un riel de la protoboard y de ahí a cada una. Los pines D14 a D17 son solo de entrada.
+      Los del ADC2 (D5, D7 a D11) no leen voltajes con el WiFi prendido; como pines comunes andan bien.</p>
   </section>
 </main>
 
 <script>
-// [código, nombre, estado, para qué / nota corta, nota larga]
+// [codigo, nombre, detalle, noUsable]
 const IZQ = [
-  ["I1", "GPIO6", "evitar", "Flash interna"],
-  ["I2", "GPIO7", "evitar", "Flash interna"],
-  ["I3", "GPIO8", "evitar", "Flash interna"],
-  ["I4", "GPIO15", "ojo", "Pin de arranque · touch"],
-  ["I5", "GPIO2", "ojo", "LED azul de la placa · arranque"],
-  ["I6", "GPIO0", "ojo", "Botón BOOT de la placa"],
-  ["I7", "GPIO4", "uso", "Botón de morse (señal)"],
-  ["I8", "GPIO16", "libre", "Libre"],
-  ["I9", "GPIO17", "libre", "Libre"],
-  ["I10", "GPIO5", "ojo", "Pin de arranque · usable"],
-  ["I11", "GPIO18", "libre", "Libre"],
-  ["I12", "GPIO19", "libre", "Libre"],
-  ["I13", "GND", "power", "Masa"],
-  ["I14", "GPIO21", "uso", "Pantalla SDA"],
-  ["I15", "GPIO3", "evitar", "RX del USB (Thonny)"],
-  ["I16", "GPIO1", "evitar", "TX del USB (Thonny)"],
-  ["I17", "GPIO22", "uso", "Pantalla SCL"],
-  ["I18", "GPIO23", "libre", "Libre"],
-  ["I19", "GND", "uso", "Pantalla GND"],
+  ["I1", "GPIO6", "Flash interna", true],
+  ["I2", "GPIO7", "Flash interna", true],
+  ["I3", "GPIO8", "Flash interna", true],
+  ["I4", "GPIO15", "Pin de arranque, usable con cuidado"],
+  ["I5", "GPIO2", "LED azul de la placa"],
+  ["I6", "GPIO0", "Botón BOOT de la placa"],
+  ["I7", "GPIO4", ""],
+  ["I8", "GPIO16", ""],
+  ["I9", "GPIO17", ""],
+  ["I10", "GPIO5", "Pin de arranque, usable"],
+  ["I11", "GPIO18", ""],
+  ["I12", "GPIO19", ""],
+  ["I13", "GND", "Masa"],
+  ["I14", "GPIO21", ""],
+  ["I15", "GPIO3", "RX del USB (Thonny)", true],
+  ["I16", "GPIO1", "TX del USB (Thonny)", true],
+  ["I17", "GPIO22", ""],
+  ["I18", "GPIO23", ""],
+  ["I19", "GND", "Masa"],
 ];
 const DER = [
-  ["D1", "VIN 5V", "power", "5V del USB"],
-  ["D2", "GPIO11", "evitar", "Flash interna"],
-  ["D3", "GPIO10", "evitar", "Flash interna"],
-  ["D4", "GPIO9", "evitar", "Flash interna"],
-  ["D5", "GPIO13", "plan", "Plaquita de 2 botones"],
-  ["D6", "GND", "uso", "Botón de morse (masa)"],
-  ["D7", "GPIO12", "ojo", "Arranque: no a 3.3V al prender"],
-  ["D8", "GPIO14", "plan", "Plaquita de 2 botones"],
-  ["D9", "GPIO27", "plan", "Plaquita de 2 botones"],
-  ["D10", "GPIO26", "plan", "Plaquita de 2 botones"],
-  ["D11", "GPIO25", "plan", "Sonido / auris (DAC)"],
-  ["D12", "GPIO33", "libre", "Libre · ADC · touch"],
-  ["D13", "GPIO32", "libre", "Libre · ADC · touch"],
-  ["D14", "GPIO35", "libre", "Solo entrada · ADC"],
-  ["D15", "GPIO34", "plan", "Micrófono (solo entrada)"],
-  ["D16", "GPIO39", "libre", "Solo entrada · ADC"],
-  ["D17", "GPIO36", "libre", "Solo entrada · ADC"],
-  ["D18", "EN", "ojo", "Reset (como el botón EN)"],
-  ["D19", "3.3V", "uso", "Pantalla VCC · 3.3V"],
+  ["D1", "VIN 5V", "5V del USB"],
+  ["D2", "GPIO11", "Flash interna", true],
+  ["D3", "GPIO10", "Flash interna", true],
+  ["D4", "GPIO9", "Flash interna", true],
+  ["D5", "GPIO13", ""],
+  ["D6", "GND", "Masa"],
+  ["D7", "GPIO12", "Arranque: no tenerlo a 3.3V al prender"],
+  ["D8", "GPIO14", "Touch"],
+  ["D9", "GPIO27", "Touch"],
+  ["D10", "GPIO26", "DAC2"],
+  ["D11", "GPIO25", "DAC1 (sonido)"],
+  ["D12", "GPIO33", "ADC, touch"],
+  ["D13", "GPIO32", "ADC, touch"],
+  ["D14", "GPIO35", "Solo entrada, ADC"],
+  ["D15", "GPIO34", "Solo entrada, ADC"],
+  ["D16", "GPIO39", "Solo entrada, ADC"],
+  ["D17", "GPIO36", "Solo entrada, ADC"],
+  ["D18", "EN", "Reset (como el botón EN)", true],
+  ["D19", "3.3V", "Única salida de 3.3V"],
 ];
-const NOMBRE_ESTADO = { uso: "En uso", plan: "Próximo", power: "Energía / GND", ojo: "Con cuidado", evitar: "No usar", libre: "Libre" };
 
-function filaPlaca([cod, nom, est, para], lado) {
+// cosas que se pueden conectar. conectada = ya esta cableada (sus pines quedan ocupados)
+const COSAS = [
+  { id: "oled", nombre: "Pantalla OLED", conectada: true,
+    pines: { I14: "SDA", I17: "SCL", I19: "GND", D19: "VCC 3.3V" } },
+  { id: "boton", nombre: "Botón morse", conectada: true,
+    pines: { I7: "señal", D6: "GND" } },
+  { id: "plaquita", nombre: "Plaquita 2 botones", conectada: false,
+    pines: { D5: "cable 1", D8: "cable 2", D9: "cable 3", D10: "cable 4" } },
+  { id: "micro", nombre: "Micrófono", conectada: false,
+    pines: { D15: "señal (+)", I13: "GND (−)", D19: "3.3V por la resistencia" } },
+  { id: "sonido", nombre: "Sonido / auris", conectada: false,
+    pines: { D11: "señal", I13: "GND" } },
+];
+
+const PINES = [...IZQ, ...DER].map(([cod, nom, det, noUsable]) => ({ cod, nom, det, noUsable: !!noUsable }));
+const porCod = Object.fromEntries(PINES.map((p) => [p.cod, p]));
+
+function guardado() { try { return JSON.parse(localStorage.getItem("pines_tildados") || "[]"); } catch { return []; } }
+function guardar(ids) { try { localStorage.setItem("pines_tildados", JSON.stringify(ids)); } catch {} }
+
+// ---- checkboxes
+const cont = document.getElementById("cosas");
+const tildadosIni = guardado();
+for (const c of COSAS) {
+  const lab = document.createElement("label");
+  lab.className = "cosa";
+  const pines = Object.keys(c.pines).join(" ");
+  lab.innerHTML = `<input type="checkbox" id="cosa-${c.id}" ${tildadosIni.includes(c.id) ? "checked" : ""}>` +
+    `<span>${c.nombre} ${c.conectada ? "" : '<span class="tag">nuevo</span>'}</span><small>${pines}</small>`;
+  cont.appendChild(lab);
+}
+
+// ---- placa y tabla
+function filaPlaca(p, lado) {
   const d = document.createElement("div");
   d.className = "pin";
-  d.id = cod;
-  d.title = `${cod} · ${nom} · ${para}`;
-  const num = `<span class="num ${est}">${cod}</span>`;
-  const txt = `<span class="nom"><b>${nom}</b><span class="extra"> · ${para}</span></span>`;
+  d.id = "pin-" + p.cod;
+  const num = `<span class="num">${p.cod}</span>`;
+  const txt = `<span class="nom"><b>${p.nom}</b><span class="extra"></span></span>`;
   d.innerHTML = lado === "izq" ? `${txt}${num}<span class="pad"></span>` : `<span class="pad"></span>${num}${txt}`;
   return d;
 }
-IZQ.forEach((p) => document.getElementById("izq").appendChild(filaPlaca(p, "izq")));
-DER.forEach((p) => document.getElementById("der").appendChild(filaPlaca(p, "der")));
+IZQ.forEach(([cod]) => document.getElementById("izq").appendChild(filaPlaca(porCod[cod], "izq")));
+DER.forEach(([cod]) => document.getElementById("der").appendChild(filaPlaca(porCod[cod], "der")));
 
 const filas = document.getElementById("filas");
 for (let i = 0; i < 19; i++) {
-  for (const [cod, nom, est, para] of [IZQ[i], DER[i]]) {
+  for (const [cod] of [IZQ[i], DER[i]]) {
     const tr = document.createElement("tr");
-    tr.dataset.buscar = `${cod} ${nom} ${NOMBRE_ESTADO[est]} ${para}`.toLowerCase();
-    tr.dataset.cod = cod;
-    tr.innerHTML = `<td class="code">${cod}</td><td class="code">${nom}</td>` +
-      `<td><span class="chip ${est}">${NOMBRE_ESTADO[est]}</span></td><td>${para}</td>`;
+    tr.id = "fila-" + cod;
+    tr.innerHTML = `<td class="code">${cod}</td><td class="code">${porCod[cod].nom}</td><td class="est"></td><td class="det"></td>`;
     filas.appendChild(tr);
   }
 }
 
+function pintar() {
+  const tildadas = COSAS.filter((c) => document.getElementById("cosa-" + c.id).checked);
+  guardar(tildadas.map((c) => c.id));
+  for (const p of PINES) {
+    const usos = COSAS.filter((c) => p.cod in c.pines);
+    const verdeDe = tildadas.filter((c) => p.cod in c.pines);
+    const ocupadoPor = usos.filter((c) => c.conectada);
+    let estado, texto;
+    if (verdeDe.length) { estado = "verde"; texto = verdeDe.map((c) => c.nombre).join(" + "); }
+    else if (p.noUsable) { estado = "ocupado"; texto = "No se usa"; }
+    else if (ocupadoPor.length) { estado = "ocupado"; texto = "Ocupado: " + ocupadoPor.map((c) => c.nombre).join(" + "); }
+    else { estado = "libre"; texto = "Libre"; }
+
+    const detalle = [
+      ...usos.map((c) => `${c.nombre}: ${c.pines[p.cod]}${c.conectada ? "" : " (nuevo)"}`),
+      p.det,
+    ].filter(Boolean).join(" · ");
+
+    const el = document.getElementById("pin-" + p.cod);
+    el.className = "pin " + estado;
+    el.title = `${p.cod} · ${p.nom}${detalle ? " · " + detalle : ""}`;
+    const corto = verdeDe.length ? verdeDe.map((c) => c.pines[p.cod]).join(" / ")
+      : ocupadoPor.length ? ocupadoPor.map((c) => c.nombre).join(" / ") : p.det;
+    el.querySelector(".extra").textContent = corto ? " · " + corto : "";
+
+    const tr = document.getElementById("fila-" + p.cod);
+    tr.querySelector(".est").innerHTML = `<span class="estado ${estado}"><i class="punto ${estado}"></i>${texto}</span>`;
+    tr.querySelector(".det").textContent = detalle;
+    tr.dataset.buscar = `${p.cod} ${p.nom} ${texto} ${detalle}`.toLowerCase();
+  }
+  filtrar();
+}
+
 const filtro = document.getElementById("filtro");
-filtro.addEventListener("input", () => {
+function filtrar() {
   const q = filtro.value.trim().toLowerCase();
-  document.querySelectorAll(".pin.marcado").forEach((p) => p.classList.remove("marcado"));
-  filas.querySelectorAll("tr").forEach((tr) => {
+  for (const p of PINES) {
+    const tr = document.getElementById("fila-" + p.cod);
     const ok = !q || tr.dataset.buscar.includes(q);
     tr.hidden = !ok;
-    if (ok && q) document.getElementById(tr.dataset.cod)?.classList.add("marcado");
-  });
-});
+    document.getElementById("pin-" + p.cod).classList.toggle("marcado", !!q && ok);
+  }
+}
+filtro.addEventListener("input", filtrar);
+cont.addEventListener("change", pintar);
+pintar();
 </script>
