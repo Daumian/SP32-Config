@@ -71,7 +71,7 @@ SP32-Config/
 │   └── config.example.py    plantilla: copiar como config.py y completar
 ├── docs/
 │   └── pines.html           mapa de pines I1–I19 / D1–D19 (USB arriba)
-├── letras/                  códigos de letras de respaldo (C, D, J, L, P) para pegar en el panel
+├── letras/                  códigos de letras de respaldo (C, D, G, J, L, P) para pegar en el panel
 ├── pc/
 │   ├── index.html           panel web: doble clic y listo, sin Python
 │   └── probador.py          ¿la PC ve el ESP32 por USB? (ventanita en la PC)
@@ -251,6 +251,7 @@ armando, para copiar y pegar en el panel:
 
 | Archivo | Letra | Qué hace |
 |---|---|---|
+| `letras/G.py` | **G** (Gato) | Una imagen de 128x32 (un gato estirándose) guardada en base64 |
 | `letras/J.py` | **J** (Dino) | El juego del dinosaurio de Chrome: tocar = saltar, récord guardado en la placa y la música de cuando muere Mario al perder |
 | `letras/C.py` | **C** (Cruzada) | Castillo y pueblo minimalistas, el Dies Irae y "Es tiempo de una nueva CRUZADA" |
 | `letras/D.py` | **D** (Dado) | Puntos rápidos = número entre 1 y la cantidad de puntos; raya = SI o NO. Cada toque tira de nuevo |
