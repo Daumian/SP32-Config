@@ -216,7 +216,7 @@ const COSAS = [
     pines: { D5: "LED (gris)", D8: "SW2 = inicio", D9: "masa (0 V)", D10: "SW1 = llave morse" } },
   { id: "micro", nombre: "Micrófono", conectada: false,
     pines: { D15: "señal (+)", I13: "GND (−)", D19: "3.3V por la resistencia" } },
-  { id: "sonido", nombre: "Sonido / auris", conectada: false,
+  { id: "sonido", nombre: "Parlantito", conectada: false,
     pines: { D11: "señal (con resistencia)", I13: "GND" } },
 ];
 
@@ -234,7 +234,7 @@ for (const c of COSAS) {
   lab.className = "cosa";
   const pines = Object.keys(c.pines).join(" ");
   lab.innerHTML = `<input type="checkbox" id="cosa-${c.id}" ${tildadosIni.includes(c.id) ? "checked" : ""}>` +
-    `<span>${c.nombre} ${c.conectada ? "" : '<span class="tag">nuevo</span>'}</span><small>${pines}</small>`;
+    `<span>${c.nombre} ${c.conectada ? "" : '<span class="tag">sin conectar</span>'}</span><small>${pines}</small>`;
   cont.appendChild(lab);
 }
 
@@ -275,7 +275,7 @@ function pintar() {
     else { estado = "libre"; texto = "Libre"; }
 
     const detalle = [
-      ...usos.map((c) => `${c.nombre}: ${c.pines[p.cod]}${c.conectada ? "" : " (nuevo)"}`),
+      ...usos.map((c) => `${c.nombre}: ${c.pines[p.cod]}${c.conectada ? "" : " (sin conectar)"}`),
       p.det,
     ].filter(Boolean).join(" · ");
 
