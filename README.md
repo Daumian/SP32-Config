@@ -256,7 +256,7 @@ armando, para copiar y pegar en el panel:
 | `letras/C.py` | **C** (Cruzada) | Castillo y pueblo minimalistas, el Dies Irae y "Es tiempo de una nueva CRUZADA" |
 | `letras/D.py` | **D** (Dado) | Puntos rápidos = número entre 1 y la cantidad de puntos; raya = SI o NO. Cada toque tira de nuevo |
 | `letras/L.py` | **L** (Luz) | Prende el LED 10 segundos |
-| `letras/R.py` | **R** (Rocky) | Un corredorcito sube la escalera y levanta los brazos con el tema de Rocky (notas aproximadas) |
+| `letras/R.py` | **R** (Rocky) | Un corredorcito sube la escalera y levanta los brazos con el tema de Rocky (notas de tablaturas de guitarra y armónica) |
 | `letras/S.py` | **S** (Star Wars) | La Marcha Imperial con "STAR" / "WARS" gigante |
 | `letras/P.py` | **P** (Marcha) | La marcha peronista en el parlantito |
 

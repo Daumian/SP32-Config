@@ -1,15 +1,20 @@
 # R: Rocky. Un corredorcito sube la escalera mientras suena el tema.
-# Notas aproximadas de "Gonna Fly Now": si alguna no suena bien, se cambia aca.
+# Notas de "Gonna Fly Now" (tablaturas de guitarra y armonica). nota:tiempos
 o = oled
 PASOS = [
     ["..#..", ".##..", "#.##.", "..#..", ".#.#.", "#...#"],
     ["..#..", "..##.", ".##.#", "..#..", "..##.", "..#.#"],
 ]
 BRAZOS_ARRIBA = ["#.#.#", ".###.", "..#..", "..#..", ".#.#.", ".#.#."]
-MI, SOL, LA, SI, MI2, RE2 = 330, 392, 440, 494, 659, 587
-NOTAS = [(MI, 150), (SOL, 150), (LA, 600), (LA, 150), (SI, 150), (MI, 600),
-         (MI, 150), (SOL, 150), (LA, 600), (LA, 150), (SI, 150), (MI2, 900),
-         (RE2, 300), (SI, 300), (LA, 300), (SOL, 300), (LA, 1200)]
+HZ = {"si3": 247, "do": 262, "re": 294, "mi": 330, "sol": 392, "do5": 523, "mi5": 659}
+TEMA = (
+    "do:4 do:4 do:3 do:3 do:4 do:3 do:3 mi:2 do:3 do:3 do:7 "
+    "mi:2 mi:3 mi:2 mi:2 mi:3 mi:2 mi:2 sol:2 mi:2 mi:2 mi:4 "
+    "re:3 re:2 re:2 re:3 re:2 mi:2 mi:2 re:3 do:3 si3:4 "
+    "mi:2 do5:2 mi5:6 mi:2 mi5:2 do5:6 mi:2 do5:2 mi5:6 mi:2 mi5:2 do5:8"
+)
+TIEMPO = 80  # ms por tiempo: mas chico = mas rapido
+NOTAS = [(HZ[n], int(t) * TIEMPO) for n, t in (p.split(":") for p in TEMA.split())]
 
 
 def muneco(dibujo, x, y):
@@ -36,7 +41,7 @@ for f, ms in NOTAS:
         y = 22 - min(5, (centro - 96) // 5) * 4 if centro >= 96 else 25  # pisa el escalon
         escena(PASOS[cuadro % 2], min(x, 122), y)
         cuadro += 1
-        x += 2 if x < 122 else 0
+        x += 1 if x < 122 else 0
         esperar(60)
     callar()
     esperar(30)
