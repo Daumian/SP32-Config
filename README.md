@@ -333,7 +333,8 @@ Todas menos `/estado` llevan `?clave=SHARED_SECRET`.
 | `/estado` | GET | JSON con `wifi`, `bluetooth`, `texto`, `escritura_libre`, `pantalla` y `comandos` |
 | `/frame` | POST | Cuerpo de 512 bytes (`MONO_VLSB`): se dibuja |
 | `/comando?letra=B` | POST | Ejecuta el comando o el código de esa letra, igual que en morse |
-| `/letras` | GET | Código de cada letra A–Z, su morse y si es fija |
+| `/letras` | GET | Lista A–Z: morse, título, si es fija, si está bloqueada y si tiene código |
+| `/codigo?l=A` | GET | El código de una letra (el panel lo pide al tocarla) |
 | `/letra?l=A` | POST | Guarda el código de la letra (cuerpo = Python; vacío = borrar) |
 | `/titulo?l=A&t=Luz` | POST | Título de la letra (hasta 10 letras, lo muestra la H) |
 | `/bloquear?l=A&si=1` | POST | Bloquea (`si=1`) o desbloquea (`si=0`) la letra para no editarla sin querer |
