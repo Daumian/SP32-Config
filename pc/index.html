@@ -149,7 +149,7 @@
 
   <section class="card">
     <h2>🔤 Letras</h2>
-    <p class="muted">Una letra sola en morse corre su código Python. <b>Verde</b> = tiene código · 🔒 = fija (W y B) · 🔐 = bloqueada para no editarla sin querer · gris = sin código, se escribe como texto.</p>
+    <p class="muted">Una letra sola en morse corre su código Python. <b>Verde</b> = tiene código · 🔒 = fija (W y B) · 🔐 = bloqueada para no editarla sin querer · 💻 = código grande, se edita desde la PC · gris = sin código, se escribe como texto.</p>
     <div class="row">
       <button id="btnCargarLetras">Cargar letras</button>
       <span id="letrasEstado" class="muted"></span>
@@ -471,7 +471,7 @@ function pintarLetras() {
     const info = letras[l];
     const b = document.createElement("button");
     b.className = "letra" + (info.fija ? " fija" : info.tiene ? " tiene" : "") + (l === letraSel ? " sel" : "");
-    b.innerHTML = `<b>${info.fija ? "🔒" : info.bloqueada ? "🔐" : ""}${l}</b><small>${info.morse}</small>` +
+    b.innerHTML = `<b>${info.fija ? "🔒" : info.bloqueada ? "🔐" : ""}${l}${info.grande ? "💻" : ""}</b><small>${info.morse}</small>` +
       `<span class="tit">${info.titulo ? info.titulo.replace(/</g, "&lt;") : "&nbsp;"}</span>`;
     b.title = info.titulo || "";
     b.addEventListener("click", () => abrirLetra(l));
@@ -487,6 +487,11 @@ async function abrirLetra(l) {
   $("edTitulo").textContent = `Letra ${l}  (${info.morse})`;
   if (info.fija) {
     $("edCodigo").value = "# " + l + " es fija: no se edita desde acá";
+  } else if (info.grande) {
+    $("edCodigo").value = "# Este código es muy grande para el celu 😜\n" +
+      "# Revisalo desde la PC: Thonny, archivo letras/" + l + ".py en la placa.\n" +
+      "# Desde acá podés cambiarle el título, bloquearla o borrarla,\n" +
+      "# y se usa igual mandando " + l + " en morse.";
   } else if (info.codigo === undefined) {
     // el codigo se pide recien al abrir la letra, asi la lista carga rapido
     $("edCodigo").value = "# cargando...";
@@ -505,6 +510,8 @@ async function abrirLetra(l) {
   $("edBloq").checked = !!info.bloqueada;
   $("edBloq").disabled = info.fija;
   for (const id of ["edCodigo", "edNombre", "btnGuardarLetra", "btnBorrarLetra"]) $(id).disabled = info.fija || !!info.bloqueada;
+  if (info.grande) { $("edCodigo").disabled = true; }
+  $("btnProbarLetra").disabled = !!info.grande;
   $("edMsg").textContent = info.inicial ? "Código de fábrica: " + info.inicial.trim() + " (Borrar vuelve a este)" : "";
 }
 
@@ -526,17 +533,25 @@ $("edBloq").addEventListener("change", async () => {
 
 $("btnGuardarLetra").addEventListener("click", async () => {
   if (!letraSel) return;
+  const info = letras[letraSel];
+  if (!info.grande && $("edCodigo").value.length > 2000) {
+    $("edMsg").textContent = "Este código es muy grande para mandarlo desde el panel (más de 2000 caracteres). " +
+      "Guardalo con Thonny en la placa, en letras/" + letraSel + ".py";
+    return;
+  }
   try {
-    const d = await pedir(conClave("/letra", "&l=" + letraSel), { method: "POST", body: $("edCodigo").value }, 15000);
-    letras[letraSel].codigo = d.codigo;
-    letras[letraSel].tiene = !!d.codigo.trim();
+    if (!info.grande) {  // los grandes solo cambian el titulo desde aca
+      const d = await pedir(conClave("/letra", "&l=" + letraSel), { method: "POST", body: $("edCodigo").value }, 15000);
+      info.codigo = d.codigo;
+      info.tiene = !!d.codigo.trim();
+    }
     // la pantalla no tiene acentos ni ñ: los sacamos antes de mandar el titulo
     const titulo = $("edNombre").value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/gi, "n").slice(0, 10);
     const t = await pedir(conClave("/titulo", "&l=" + letraSel + "&t=" + encodeURIComponent(titulo)), { method: "POST" }, 15000);
-    letras[letraSel].titulo = t.titulo;
+    info.titulo = t.titulo;
     $("edNombre").value = t.titulo;
     pintarLetras();
-    $("edMsg").textContent = "Guardado ✅ Ya se puede usar en morse.";
+    $("edMsg").textContent = info.grande ? "Título guardado ✅" : "Guardado ✅ Ya se puede usar en morse.";
   } catch (e) { $("edMsg").textContent = "No se pudo guardar: " + e.message; }
 });
 
@@ -554,6 +569,7 @@ $("btnBorrarLetra").addEventListener("click", async () => {
     const d = await pedir(conClave("/letra", "&l=" + letraSel), { method: "POST", body: "" }, 15000);
     letras[letraSel].codigo = d.codigo;
     letras[letraSel].tiene = !!d.codigo.trim();
+    letras[letraSel].grande = false;
     $("edCodigo").value = d.codigo;
     pintarLetras();
     $("edMsg").textContent = d.codigo ? "Borrado ✅ Volvió al código de fábrica." : "Borrado ✅ Ahora la letra se escribe como texto.";
