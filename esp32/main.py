@@ -879,6 +879,30 @@ def leer_peticion(conn):
     return metodo, ruta, params, cuerpo
 
 
+def enviar(conn, datos, ms=3000):
+    """Manda todo, pero si el otro lado no recibe en ms milisegundos, se rinde.
+
+    sendall() ignora el tiempo de espera: si el navegador deja de escuchar sin
+    cerrar (por ejemplo, cambiamos de app en el celu), se quedaria esperando
+    para siempre y trabaria toda la placa.
+    """
+    conn.settimeout(0)  # no bloqueante: send() manda lo que entre y vuelve
+    vista = memoryview(datos)
+    fin = time.ticks_add(time.ticks_ms(), ms)
+    i = 0
+    while i < len(datos):
+        try:
+            n = conn.send(vista[i:i + 512])
+            i += n or 0
+        except OSError as e:
+            if e.args[0] not in (11, 116, 119):  # EAGAIN, ETIMEDOUT, EINPROGRESS: lleno, reintentar
+                raise
+        if i < len(datos):
+            if time.ticks_diff(fin, time.ticks_ms()) < 0:
+                raise OSError(116)  # ETIMEDOUT: el otro lado no recibe, abandonamos
+            time.sleep_ms(5)
+
+
 def servir_archivo(conn, nombre, tipo):
     try:
         f = open(nombre, "rb")
@@ -886,7 +910,7 @@ def servir_archivo(conn, nombre, tipo):
         responder(conn, "404 Not Found", {"error": "falta " + nombre + " en la placa"})
         return
     try:
-        conn.sendall((
+        enviar(conn, (
             "HTTP/1.1 200 OK\r\n"
             "Content-Type: " + tipo + "\r\n"
             "Connection: close\r\n\r\n").encode())
@@ -894,14 +918,14 @@ def servir_archivo(conn, nombre, tipo):
             pedazo = f.read(1024)
             if not pedazo:
                 break
-            conn.sendall(pedazo)
+            enviar(conn, pedazo)
     finally:
         f.close()
 
 
 def responder(conn, codigo, datos=None):
     cuerpo = json.dumps(datos).encode() if datos is not None else b""
-    conn.sendall((
+    enviar(conn, (
         "HTTP/1.1 " + codigo + "\r\n"
         "Access-Control-Allow-Origin: *\r\n"
         "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
@@ -909,10 +933,7 @@ def responder(conn, codigo, datos=None):
         "Access-Control-Allow-Private-Network: true\r\n"
         "Content-Type: application/json\r\n"
         "Content-Length: " + str(len(cuerpo)) + "\r\n"
-        "Connection: close\r\n\r\n").encode())
-    # de a pedacitos: mandar todo junto puede pasarse del tiempo de espera
-    for i in range(0, len(cuerpo), 1024):
-        conn.sendall(cuerpo[i:i + 1024])
+        "Connection: close\r\n\r\n").encode() + cuerpo)
 
 
 def check_http():

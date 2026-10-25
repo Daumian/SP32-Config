@@ -532,6 +532,7 @@ Lo que fuimos aprendiendo (y rompiendo) en el camino:
 | Error `runtime.lastError` en la consola del navegador | Ruido de una extensión de Chrome | Ignorar |
 | Cambios en la web no se ven | Caché del navegador | Ctrl+Shift+R |
 | Conectado a **Morse-ESP32** pero el panel no abre | El celu manda todo por los datos móviles porque la red no tiene internet | Apagar los datos móviles un rato, entrar a `http://192.168.4.1` (con `http://`) y decir "mantener conectado" si pregunta |
+| La placa se tildaba al usar el panel (`responder` en el traceback) | El navegador dejaba de escuchar y `sendall` esperaba para siempre | Arreglado: la placa manda con `enviar()`, que se rinde a los 3 segundos |
 
 ---
 
