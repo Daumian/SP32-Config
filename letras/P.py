@@ -47,7 +47,7 @@ notas = M.split()
 antes = -1
 try:
     for i, parte in enumerate(notas):
-        fase = (0, 0, 0, 1, 1, 1, 2, 2, 3, 3)[i * 10 // len(notas)]
+        fase = (0, 0, 1, 1, 2, 3, 3, 3, 3, 3)[i * 10 // len(notas)]
         if fase != antes:
             pan(fase)
             antes = fase
