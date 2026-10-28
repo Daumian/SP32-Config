@@ -71,7 +71,7 @@ SP32-Config/
 │   └── config.example.py    plantilla: copiar como config.py y completar
 ├── docs/
 │   └── pines.html           mapa de pines I1–I19 / D1–D19 (USB arriba)
-├── letras/                  códigos de letras de respaldo (C, D, G, J, L, P, R, S) para pegar en el panel
+├── letras/                  códigos de letras de respaldo (C, D, G, J, L, N, P, R, S) para pegar en el panel
 ├── pc/
 │   ├── index.html           panel web: doble clic y listo, sin Python
 │   └── probador.py          ¿la PC ve el ESP32 por USB? (ventanita en la PC)
@@ -258,6 +258,7 @@ armando, para copiar y pegar en el panel:
 | `letras/L.py` | **L** (Luz) | Prende el LED 10 segundos |
 | `letras/R.py` | **R** (Rocky) | Un corredorcito sube la escalera y levanta los brazos con el tema de Rocky (notas de tablaturas de guitarra y armónica) |
 | `letras/S.py` | **S** (Star Wars) | Un caza TIE cruza las estrellas hacia la Estrella de la Muerte con la Marcha Imperial, y al final el rayo |
+| `letras/N.py` | **N** (Notas) | Toca DO RE MI FA SOL LA SI DO y muestra cada nota grande con sus Hz |
 | `letras/P.py` | **P** (Marcha) | La marcha peronista en el parlantito |
 
 Si el código tiene un error, la placa no se cuelga: lo muestra en pantalla y
