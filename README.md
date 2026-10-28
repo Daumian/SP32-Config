@@ -260,7 +260,7 @@ armando, para copiar y pegar en el panel:
 | `letras/R.py` | **R** (Rocky) | Un corredorcito sube la escalera y levanta los brazos con el tema de Rocky (notas de tablaturas de guitarra y armónica) |
 | `letras/S.py` | **S** (Star Wars) | Un caza TIE cruza las estrellas hacia la Estrella de la Muerte con la Marcha Imperial, y al final el rayo |
 | `letras/N.py` | **N** (Notas) | Toca DO RE MI FA SOL LA SI DO y muestra cada nota grande con sus Hz |
-| `letras/P.py` | **P** (Marcha) | La marcha peronista en el parlantito |
+| `letras/P.py` | **P** (Marcha) | La marcha peronista con PERON destellando, el General saludando (dibujo de 26x32), GOOGLEA y PERON 14 AÑOS |
 
 Si el código tiene un error, la placa no se cuelga: lo muestra en pantalla y
 en el panel. Si queda trabado en un loop, **SW2** lo corta (si usa `esperar`).
